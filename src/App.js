@@ -4,7 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 // Components Import
 import Navbar from './Navbar';
-import Sidebar from './Sidebar'; // Naya Sidebar import
+import Sidebar from './Sidebar';
 import Login from './Login';
 import Home from './Home';
 import TypingTool from './TypingTool';
@@ -13,16 +13,20 @@ import AdminPanel from './AdminPanel';
 
 const App = () => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // 👈 Naya Loading State
   const [view, setView] = useState('home'); 
   const [activeDoc, setActiveDoc] = useState(null);
   const [testResult, setTestResult] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar control state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // 📡 LOGIN STATUS CHECK
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false); // 👈 Jaise hi Firebase confirm kare, loading band
+    });
     return () => unsubscribe();
   }, []);
 
@@ -37,16 +41,25 @@ const App = () => {
 
   const toggleTheme = () => setDarkMode(!darkMode);
 
+  // 1. Agar Firebase abhi check kar raha hai, to blank ya loading screen dikhao
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // 2. Agar user nahi milta, to login page
   if (!user) {
     return <Login darkMode={darkMode} toggleTheme={toggleTheme} />;
   }
 
+  // 3. Agar user mil gaya, to main app
   return (
     <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-slate-900' : 'bg-slate-50'}`}>
-      
       <div className="dark:text-slate-100 text-slate-900">
         
-        {/* Navbar mein setIsSidebarOpen pass kiya hai */}
         <Navbar 
           user={user} 
           setView={setView} 
@@ -56,7 +69,6 @@ const App = () => {
           setIsSidebarOpen={setIsSidebarOpen}
         />
 
-        {/* Naya Sidebar Component */}
         <Sidebar 
           isOpen={isSidebarOpen} 
           setIsOpen={setIsSidebarOpen} 
