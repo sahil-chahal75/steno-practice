@@ -4,17 +4,15 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const Result = ({ result, doc, setView, darkMode }) => {
   const [showOriginal, setShowOriginal] = useState(false);
-  const [filterType, setFilterType] = useState(null); // Mistakes filter karne ke liye
+  const [filterType, setFilterType] = useState(null); 
   const originalText = doc.text;
   const typedText = result || "";
 
-  // 1. CLEANING LOGIC (UNCHANGED)
   const clean = (word) => {
     if (!word) return "";
     return word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").toLowerCase().trim();
   };
 
-  // 2. COMPARISON ENGINE (UNCHANGED)
   const calculateResult = () => {
     const oriArr = originalText.trim().split(/\s+/);
     const typArr = typedText.trim().split(/\s+/);
@@ -78,7 +76,6 @@ const Result = ({ result, doc, setView, darkMode }) => {
 
   const data = calculateResult();
 
-  // 3. SAVE TO FIREBASE (UNCHANGED)
   useEffect(() => {
     const saveToDB = async () => {
       const user = auth.currentUser;
@@ -103,7 +100,6 @@ const Result = ({ result, doc, setView, darkMode }) => {
     saveToDB();
   }, []);
 
-  // Filter Logic for buttons
   const filteredWords = data.report.filter(item => {
     if (filterType === 'full') return ['wrong', 'missing', 'extra'].includes(item.type);
     if (filterType === 'half') return item.type === 'half';
@@ -119,8 +115,7 @@ const Result = ({ result, doc, setView, darkMode }) => {
         @media print {
           .no-print { display: none !important; }
           body { background: white !important; margin: 0; padding: 0; }
-          .print-container { box-shadow: none !important; border: 1px solid #eee !important; border-radius: 10px !important; page-break-inside: avoid; margin-bottom: 10px !important; padding: 15px !important; }
-          .report-text { font-size: 14px !important; line-height: 1.6 !important; }
+          .print-container { box-shadow: none !important; border: 1px solid #ddd !important; border-radius: 10px !important; page-break-inside: avoid; margin-bottom: 10px !important; padding: 15px !important; }
         }
       `}} />
 
@@ -136,75 +131,97 @@ const Result = ({ result, doc, setView, darkMode }) => {
 
         <h2 className={`text-3xl font-black mb-6 text-center italic ${data.isQualified ? 'text-green-600' : 'text-red-600'}`}>{data.isQualified ? 'QUALIFIED ✅' : 'DISQUALIFIED ❌'}</h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* 1 & 2. STATS SECTION (Fixing Visibility) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="bg-slate-50 p-3 rounded-xl text-center border">
-            <p className="text-[9px] font-black text-slate-400 uppercase">Original Words</p>
-            <p className="text-xl font-black text-slate-800">{data.totalWords}</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase">Original Words</p>
+            <p className="text-xl font-black text-slate-900">{data.totalWords}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl text-center border">
+            <p className="text-[9px] font-black text-slate-500 uppercase">Typed Words</p>
+            <p className="text-xl font-black text-slate-900">{data.typedWords}</p>
           </div>
           <div className="bg-blue-50 p-3 rounded-xl text-center border border-blue-100">
             <p className="text-[9px] font-black text-blue-500 uppercase">Error %</p>
             <p className="text-xl font-black text-blue-600">{data.errorPercent}%</p>
           </div>
-          {/* MISTAKE BUTTONS */}
-          <button onClick={() => setFilterType(filterType === 'full' ? null : 'full')} className={`p-3 rounded-xl text-center border transition-all no-print ${filterType === 'full' ? 'bg-red-600 text-white shadow-inner' : 'bg-slate-50'}`}>
-            <p className={`text-[9px] font-black uppercase ${filterType === 'full' ? 'text-white' : 'text-slate-400'}`}>Full Mistake</p>
-            <p className="text-xl font-black">{data.fullMistakes}</p>
-          </button>
-          <button onClick={() => setFilterType(filterType === 'half' ? null : 'half')} className={`p-3 rounded-xl text-center border transition-all no-print ${filterType === 'half' ? 'bg-orange-500 text-white shadow-inner' : 'bg-slate-50'}`}>
-            <p className={`text-[9px] font-black uppercase ${filterType === 'half' ? 'text-white' : 'text-slate-400'}`}>Half Mistake</p>
-            <p className="text-xl font-black">{data.halfMistakes}</p>
-          </button>
+          <div className="bg-slate-50 p-3 rounded-xl text-center border">
+            <p className="text-[9px] font-black text-slate-500 uppercase">Full Mistake</p>
+            <p className="text-xl font-black text-red-600">{data.fullMistakes}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl text-center border">
+            <p className="text-[9px] font-black text-slate-500 uppercase">Half Mistake</p>
+            <p className="text-xl font-black text-orange-600">{data.halfMistakes}</p>
+          </div>
         </div>
       </div>
 
-      {/* FILTERED WORDS LIST (Only shows on tap) */}
+      {/* 3. MISTAKE FILTER BUTTONS */}
+      <div className="flex gap-4 mb-6 no-print">
+        <button 
+          onClick={() => setFilterType(filterType === 'full' ? null : 'full')} 
+          className={`flex-1 py-3 rounded-xl font-black uppercase text-[11px] border transition-all ${filterType === 'full' ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}
+        >
+          Check Full Mistakes
+        </button>
+        <button 
+          onClick={() => setFilterType(filterType === 'half' ? null : 'half')} 
+          className={`flex-1 py-3 rounded-xl font-black uppercase text-[11px] border transition-all ${filterType === 'half' ? 'bg-orange-600 text-white shadow-lg' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
+        >
+          Check Half Mistakes
+        </button>
+      </div>
+
+      {/* FILTERED LIST */}
       {filterType && (
-        <div className="no-print bg-white border border-slate-200 rounded-[2rem] p-6 mb-6 animate-in slide-in-from-top duration-300">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-sm font-black text-slate-500 uppercase italic">
-              Listing: {filterType === 'full' ? 'Full Mistakes' : 'Half Mistakes'}
-            </h4>
-            <button onClick={() => setFilterType(null)} className="text-[10px] font-bold text-red-500 uppercase">Clear Filter ✕</button>
-          </div>
+        <div className="no-print bg-slate-50 border-2 border-slate-200 rounded-[2rem] p-6 mb-6 animate-in slide-in-from-top duration-300">
+          <h4 className="text-xs font-black text-slate-600 uppercase mb-4 italic underline decoration-blue-500">
+            {filterType === 'full' ? 'Full Mistake List' : 'Half Mistake List'}
+          </h4>
           <div className="flex flex-wrap gap-2">
             {filteredWords.map((item, idx) => (
-              <span key={idx} className={`px-3 py-1 rounded-lg text-sm font-bold border ${filterType === 'full' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
-                {item.word} {item.original && <span className="text-[10px] opacity-60">({item.original})</span>}
+              <span key={idx} className={`px-4 py-2 rounded-lg text-sm font-black border-2 ${filterType === 'full' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                {item.word} {item.original && <span className="text-[10px] opacity-70">({item.original})</span>}
               </span>
             ))}
+            {filteredWords.length === 0 && <p className="text-xs font-bold text-slate-400 italic">No mistakes found in this category.</p>}
           </div>
         </div>
       )}
 
       {showOriginal && (
         <div className="print-container bg-white border border-slate-200 rounded-[2rem] p-6 mb-6">
-          <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px] mb-4 italic">Original Matter Reference</h3>
-          <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap font-medium p-4 bg-slate-50 rounded-xl border">{originalText}</div>
+          <h3 className="font-black uppercase tracking-widest text-slate-500 text-[10px] mb-4 italic">Original Matter Reference</h3>
+          <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap font-bold p-4 bg-slate-50 rounded-xl border">{originalText}</div>
         </div>
       )}
 
-      {/* DETAILED REVIEW */}
+      {/* 4. DETAILED ANALYSIS (Darker Colors) */}
       <div className="print-container bg-white rounded-[2rem] p-6 shadow-lg border border-slate-100">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px] italic">Detailed Analysis</h3>
-          <div className="text-[9px] font-bold text-slate-500 uppercase space-x-2">
-            <span>Correct: Green</span> | <span>Wrong: Red</span> | <span>Half: Orange</span> | <span>Extra: Blue</span> | <span>Missing: Brackets</span>
+        <div className="flex justify-between items-center mb-6 border-b-2 border-slate-100 pb-4">
+          <h3 className="font-black uppercase tracking-widest text-slate-500 text-[10px] italic">Evaluation Analysis</h3>
+          <div className="text-[10px] font-black uppercase space-x-2">
+            <span className="text-green-700">Correct: Green</span> | 
+            <span className="text-red-700">Wrong: Red</span> | 
+            <span className="text-orange-700">Half: Orange</span> | 
+            <span className="text-blue-700">Extra: Blue</span> | 
+            <span className="text-slate-900 font-bold underline">Missing: Brackets</span>
           </div>
         </div>
         
-        <div className="report-text bg-white leading-[2.5] font-medium text-lg text-justify">
+        <div className="leading-[2.8] font-bold text-lg text-justify px-2">
           {data.report.map((item, idx) => (
             <span key={idx} className="inline-block mr-2">
-              {item.type === 'correct' && <span className="text-green-600">{item.word}</span>}
-              {item.type === 'wrong' && <span className="text-red-700 font-bold border-b-2 border-red-200">{item.word}</span>}
-              {item.type === 'half' && <span className="text-orange-500 underline decoration-dotted">{item.word}</span>}
-              {item.type === 'missing' && <span className="text-slate-400 font-black bg-slate-100 px-1 rounded">{item.word}</span>}
-              {item.type === 'extra' && <span className="text-blue-600 font-bold italic underline">{item.word}</span>}
+              {item.type === 'correct' && <span className="text-green-700">{item.word}</span>}
+              {item.type === 'wrong' && <span className="text-red-700 font-black border-b-4 border-red-200">{item.word}</span>}
+              {item.type === 'half' && <span className="text-orange-700 underline decoration-2">{item.word}</span>}
+              {item.type === 'missing' && <span className="text-slate-900 font-black bg-slate-200 px-1 rounded">{item.word}</span>}
+              {item.type === 'extra' && <span className="text-blue-700 font-black italic underline decoration-2">{item.word}</span>}
             </span>
           ))}
         </div>
 
-        <button onClick={() => setView('home')} className="no-print w-full mt-8 bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all">Back to Dashboard</button>
+        <button onClick={() => setView('home')} className="no-print w-full mt-8 bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl">Back to Dashboard</button>
       </div>
     </div>
   );
