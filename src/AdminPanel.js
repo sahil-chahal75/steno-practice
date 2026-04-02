@@ -1,140 +1,201 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 
 const AdminPanel = ({ setShowAdmin, user }) => {
   const [activeTab, setActiveTab] = useState('upload'); 
   const [form, setForm] = useState({ title: '', cat: 'kc', text: '', time: 10, errorLimit: 8, audioUrl: '' });
+  const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // States for new features
   const [allUsers, setAllUsers] = useState([]);
+  const [dictations, setDictations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [profiles, setProfiles] = useState([]);
 
+  // 📡 Data Fetching Logic
   useEffect(() => {
-    if (activeTab === 'users') {
-      const fetchUsers = async () => {
-        try {
-          const q = query(collection(db, "results"), orderBy("submittedAt", "desc"));
-          const snapshot = await getDocs(q);
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setAllUsers(data);
-        } catch (err) { console.error(err); }
-      };
-      fetchUsers();
-    }
+    const fetchData = async () => {
+      if (activeTab === 'users') {
+        const q = query(collection(db, "results"), orderBy("submittedAt", "desc"));
+        const snap = await getDocs(q);
+        setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+      if (activeTab === 'manage') {
+        const q = query(collection(db, "dictations"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        setDictations(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+      if (activeTab === 'messages') {
+        const q = query(collection(db, "messages"), orderBy("time", "desc"));
+        const snap = await getDocs(q);
+        setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+      if (activeTab === 'profiles') {
+        const snap = await getDocs(collection(db, "users"));
+        setProfiles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+    };
+    fetchData();
   }, [activeTab]);
 
   const handlePublish = async (e) => {
     e.preventDefault();
-    if (!form.audioUrl.startsWith('http')) return alert("Please enter a valid Audio Link!");
-    
     setLoading(true);
     try {
-      await addDoc(collection(db, "dictations"), {
-        ...form,
-        allowedTime: Number(form.time),
-        errorLimit: Number(form.errorLimit),
-        createdAt: serverTimestamp()
-      });
-      alert("🚀 Dictation Published Successfully via Link!");
-      setLoading(false);
-      setShowAdmin(false);
-    } catch (err) {
-      alert(err.message);
-      setLoading(false);
+      if (editId) {
+        await updateDoc(doc(db, "dictations", editId), {
+          ...form, allowedTime: Number(form.time), errorLimit: Number(form.errorLimit)
+        });
+        alert("Updated! ✅");
+      } else {
+        await addDoc(collection(db, "dictations"), {
+          ...form, allowedTime: Number(form.time), errorLimit: Number(form.errorLimit), createdAt: serverTimestamp()
+        });
+        alert("Published! 🚀");
+      }
+      setForm({ title: '', cat: 'kc', text: '', time: 10, errorLimit: 8, audioUrl: '' });
+      setEditId(null);
+      setActiveTab('manage');
+    } catch (err) { alert(err.message); }
+    setLoading(false);
+  };
+
+  const deleteDictation = async (id) => {
+    if (window.confirm("Delete kar dein?")) {
+      await deleteDoc(doc(db, "dictations", id));
+      setDictations(dictations.filter(d => d.id !== id));
     }
   };
 
+  const startEdit = (d) => {
+    setForm({ title: d.title, cat: d.cat, text: d.text, time: d.allowedTime, errorLimit: d.errorLimit, audioUrl: d.audioUrl });
+    setEditId(d.id);
+    setActiveTab('upload');
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] p-4 flex items-center justify-center overflow-y-auto">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-5xl rounded-[3rem] p-8 shadow-2xl relative border-t-8 border-green-500 min-h-[80vh]">
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[500] p-2 md:p-6 flex items-center justify-center overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-6xl rounded-[2.5rem] shadow-2xl relative border-t-8 border-blue-600 flex flex-col h-[90vh]">
         
-        {/* HEADER TABS */}
-        <div className="flex gap-4 mb-8 border-b dark:border-slate-700 pb-4">
-          <button onClick={() => setActiveTab('upload')} className={`px-6 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest ${activeTab === 'upload' ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-slate-100 dark:bg-slate-900 dark:text-slate-400'}`}>Upload Dictation</button>
-          <button onClick={() => setActiveTab('users')} className={`px-6 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest ${activeTab === 'users' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-100 dark:bg-slate-900 dark:text-slate-400'}`}>Student Records</button>
-          <button onClick={() => setShowAdmin(false)} className="ml-auto text-slate-400 font-bold text-xs uppercase hover:text-red-500 transition-colors">Close ✕</button>
+        {/* 📱 SCROLLABLE NAVBAR */}
+        <div className="flex gap-2 p-4 overflow-x-auto no-scrollbar border-b dark:border-slate-800 shrink-0">
+          {[
+            {id:'upload', n:'Upload', c:'bg-green-500'},
+            {id:'manage', n:'Manage Tests', c:'bg-amber-500'},
+            {id:'users', n:'Results', c:'bg-blue-600'},
+            {id:'profiles', n:'Students', c:'bg-purple-600'},
+            {id:'messages', n:'Inbox', c:'bg-red-500'}
+          ].map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest whitespace-nowrap transition-all ${activeTab === t.id ? `${t.c} text-white shadow-lg` : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+              {t.n}
+            </button>
+          ))}
+          <button onClick={() => setShowAdmin(false)} className="ml-auto bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Exit ✕</button>
         </div>
 
-        {activeTab === 'upload' ? (
-          <form onSubmit={handlePublish} className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-300">
-            <div className="space-y-4">
-              <div className="group">
-                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Exercise Title</label>
-                <input type="text" placeholder="e.g. KC No. 481 (Front)" className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white p-4 rounded-2xl outline-none border-2 border-transparent focus:border-green-500 font-bold transition-all" value={form.title} onChange={e=>setForm({...form, title: e.target.value})} required />
-              </div>
-
-              <div className="group">
-                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Magazine Category</label>
-                <select className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-green-500" value={form.cat} onChange={e=>setForm({...form, cat: e.target.value})}>
+        <div className="flex-1 overflow-y-auto p-6">
+          
+          {/* 1. UPLOAD / EDIT FORM */}
+          {activeTab === 'upload' && (
+            <form onSubmit={handlePublish} className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+              <div className="space-y-4">
+                <h3 className="text-blue-600 font-black italic uppercase text-xs">{editId ? 'Editing Mode 📝' : 'New Dictation ✨'}</h3>
+                <input type="text" placeholder="Title" className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl outline-none dark:text-white font-bold" value={form.title} onChange={e=>setForm({...form, title: e.target.value})} required />
+                <select className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl font-bold dark:text-white" value={form.cat} onChange={e=>setForm({...form, cat: e.target.value})}>
                   <option value="kc">📘 KC Magazine</option>
                   <option value="prog">📈 Progressive</option>
                   <option value="speed">⚡ Speedography</option>
                   <option value="misc">📁 Miscellaneous</option>
                 </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border-2 border-transparent focus-within:border-green-500">
-                  <label className="text-[9px] font-black text-slate-400 uppercase">Time (Min)</label>
-                  <input type="number" className="w-full bg-transparent p-1 font-bold dark:text-white outline-none" value={form.time} onChange={e=>setForm({...form, time: e.target.value})} required />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="number" placeholder="Min" className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl font-bold dark:text-white" value={form.time} onChange={e=>setForm({...form, time: e.target.value})} required />
+                  <input type="number" placeholder="Error %" className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl font-bold dark:text-white" value={form.errorLimit} onChange={e=>setForm({...form, errorLimit: e.target.value})} required />
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border-2 border-transparent focus-within:border-green-500">
-                  <label className="text-[9px] font-black text-slate-400 uppercase">Error % Limit</label>
-                  <input type="number" className="w-full bg-transparent p-1 font-bold dark:text-white outline-none" value={form.errorLimit} onChange={e=>setForm({...form, errorLimit: e.target.value})} required />
+                <input type="url" placeholder="Audio URL" className="w-full bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl font-bold dark:text-white" value={form.audioUrl} onChange={e=>setForm({...form, audioUrl: e.target.value})} required />
+              </div>
+              <div className="flex flex-col">
+                <textarea placeholder="Paste Text Matter..." className="w-full bg-slate-50 dark:bg-slate-800 p-5 rounded-3xl flex-1 font-medium dark:text-white outline-none min-h-[200px]" value={form.text} onChange={e=>setForm({...form, text: e.target.value})} required />
+                <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase mt-4 shadow-xl">
+                  {loading ? 'Processing...' : (editId ? 'Update Now' : 'Publish Test')}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 2. MANAGE TESTS (Edit/Delete) */}
+          {activeTab === 'manage' && (
+            <div className="space-y-4">
+              {dictations.map(d => (
+                <div key={d.id} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl flex justify-between items-center">
+                  <div>
+                    <p className="font-black dark:text-white uppercase italic text-sm">{d.title}</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase">{d.cat} | {d.allowedTime} Mins</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => startEdit(d)} className="bg-blue-100 text-blue-600 p-2 rounded-lg text-[9px] font-black uppercase">Edit</button>
+                    <button onClick={() => deleteDictation(d.id)} className="bg-red-100 text-red-600 p-2 rounded-lg text-[9px] font-black uppercase">Delete</button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="group">
-                <label className="text-[9px] font-black text-blue-500 uppercase ml-2 italic">Audio Direct Link (Google Drive/Dropbox)</label>
-                <input type="url" placeholder="https://..." className="w-full bg-blue-50/50 dark:bg-blue-900/20 dark:text-white p-4 rounded-2xl outline-none border-2 border-blue-100 dark:border-blue-900 focus:border-blue-500 font-bold" value={form.audioUrl} onChange={e=>setForm({...form, audioUrl: e.target.value})} required />
-              </div>
+              ))}
             </div>
+          )}
 
-            <div className="flex flex-col">
-              <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Original Text Matter</label>
-              <textarea placeholder="Paste dictation text here..." className="w-full bg-slate-50 dark:bg-slate-900 dark:text-white p-5 rounded-3xl flex-1 font-medium outline-none border-2 border-transparent focus:border-green-500 resize-none shadow-inner" value={form.text} onChange={e=>setForm({...form, text: e.target.value})} required />
-              <button disabled={loading} className="w-full bg-slate-900 dark:bg-green-600 text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] mt-4 shadow-xl active:scale-95 transition-all">
-                {loading ? 'Publishing...' : 'Publish Dictation'}
-              </button>
+          {/* 3. INBOX MESSAGES */}
+          {activeTab === 'messages' && (
+            <div className="space-y-4">
+              {messages.map(m => (
+                <div key={m.id} className="bg-slate-50 dark:bg-slate-800 p-5 rounded-[2rem] border-l-8 border-red-500">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-black text-xs dark:text-white uppercase">{m.sender}</span>
+                    <span className="text-[9px] text-slate-400">{m.time?.toDate().toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm dark:text-slate-300 italic">"{m.text}"</p>
+                  <p className="text-[9px] mt-2 font-bold text-blue-500">{m.email}</p>
+                </div>
+              ))}
             </div>
-          </form>
-        ) : (
-          /* TAB 2: USER RECORDS (Clean Table) */
-          <div className="animate-in slide-in-from-bottom duration-300">
-            <div className="overflow-x-auto bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-6 shadow-inner">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-[10px] font-black text-slate-400 uppercase text-left border-b dark:border-slate-800">
-                    <th className="p-4">Student Details</th>
-                    <th className="p-4">Exercise</th>
-                    <th className="p-4">Error %</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Date</th>
+          )}
+
+          {/* 4. STUDENT PROFILES */}
+          {activeTab === 'profiles' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {profiles.map(p => (
+                <div key={p.id} className="bg-slate-50 dark:bg-slate-800 p-5 rounded-3xl border dark:border-slate-700">
+                  <p className="font-black uppercase text-blue-600">{p.name || 'No Name'}</p>
+                  <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] font-bold text-slate-500 uppercase">
+                    <span>📞 {p.phone || 'N/A'}</span>
+                    <span>📍 {p.city || 'N/A'}</span>
+                    <span>🎓 {p.edu || 'N/A'}</span>
+                    <span>📫 {p.pin || 'N/A'}</span>
+                  </div>
+                  <p className="text-[9px] mt-2 italic truncate opacity-50">{p.email}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 5. USER RESULTS (Pichla wala same) */}
+          {activeTab === 'users' && (
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                  <tr className="text-[9px] font-black text-slate-400 uppercase border-b dark:border-slate-800">
+                    <th className="p-3">Student</th><th className="p-3">Exercise</th><th className="p-3">Error</th><th className="p-3">Status</th>
                   </tr>
-                </thead>
-                <tbody className="divide-y dark:divide-slate-800">
-                  {allUsers.map((rec) => (
-                    <tr key={rec.id} className="hover:bg-white dark:hover:bg-slate-800 transition-colors">
-                      <td className="p-4 text-sm">
-                        <div className="font-black dark:text-slate-200 uppercase">{rec.userName}</div>
-                        <div className="text-[9px] text-slate-400 font-bold italic">{rec.userEmail}</div>
-                      </td>
-                      <td className="p-4 font-bold text-xs dark:text-slate-400">{rec.exerciseTitle}</td>
-                      <td className="p-4 font-black text-blue-600">{rec.errorPercent}%</td>
-                      <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${rec.status.includes('QUALIFIED') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                          {rec.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-[10px] font-bold text-slate-400 italic">
-                        {rec.submittedAt?.toDate().toLocaleDateString('en-GB')}
-                      </td>
+                  {allUsers.map(rec => (
+                    <tr key={rec.id} className="text-xs border-b dark:border-slate-800">
+                      <td className="p-3 font-bold dark:text-white">{rec.userName}</td>
+                      <td className="p-3 text-slate-500">{rec.exerciseTitle}</td>
+                      <td className="p-3 font-black text-blue-600">{rec.errorPercent}%</td>
+                      <td className={`p-3 font-black ${rec.status.includes('QUALIFIED') ? 'text-green-500' : 'text-red-500'}`}>{rec.status}</td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+               </table>
+             </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
