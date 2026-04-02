@@ -1,5 +1,7 @@
 export const siteConfig = {
   name: "StenoPulse", 
+  adminName: "SAHIL CHAHAL",
+  adminEmail: "sahilchahalkuk@gmail.com", // Authorized Admin
   heroMessage: "Focus, Type, and Conquer!",
   categories: [
     { id: "kc", name: "KC Magazine", icon: "📘" },
