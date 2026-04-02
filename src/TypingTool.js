@@ -7,7 +7,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
   
   const audioRef = useRef(null);
   const timerRef = useRef(null);
-  const textareaRef = useRef(null); // Auto-scroll ke liye
+  const textareaRef = useRef(null);
 
   // ⏱️ Timer Logic
   useEffect(() => {
@@ -19,7 +19,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
     return () => clearInterval(timerRef.current);
   }, [isTimerActive, timeLeft]);
 
-  // 📜 Auto-Scroll Logic: Jab bhi text change ho, niche scroll karo
+  // 📜 Auto-Scroll Logic: Ensures the cursor is always visible
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
@@ -33,7 +33,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
   };
 
   const handleSubmit = () => {
-    if (window.confirm("Are you sure you want to submit?")) {
+    if (window.confirm("Are you sure you want to submit your transcription?")) {
       clearInterval(timerRef.current);
       if (audioRef.current) audioRef.current.pause();
       setTestResult(typedText);
@@ -42,77 +42,88 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-2 pb-10 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-900 pb-10 font-sans transition-colors">
       
-      {/* 🟢 TOP BAR: Simple & Slim */}
-      <div className="flex justify-between items-center mb-4 bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-sm border dark:border-slate-700">
-        <h2 className="font-black text-xs uppercase tracking-tighter text-slate-500 dark:text-slate-400 truncate max-w-[150px]">
-          {doc.title}
-        </h2>
-        <div className="flex items-center gap-4">
-          <span className={`font-mono text-xl font-black ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-blue-600'}`}>
-            {formatTime(timeLeft)}
-          </span>
-          <button 
-            onClick={() => setView('home')} 
-            className="text-[10px] font-black uppercase text-red-500 border border-red-200 px-2 py-1 rounded-md"
-          >
-            Exit
-          </button>
+      {/* ⚪ MAIN EXAM CONTAINER (White Background like Image) */}
+      <div className="max-w-4xl mx-auto pt-6 px-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+          
+          {/* Header Section */}
+          <h1 className="text-2xl font-semibold text-center text-slate-800 dark:text-white mb-6">
+            Steno Dictation Practice
+          </h1>
+
+          <div className="flex flex-col gap-4">
+            
+            {/* Time Left Info */}
+            <div className="text-slate-600 dark:text-slate-300 font-medium">
+              Time Left: <span className="font-mono">{formatTime(timeLeft)}</span>
+            </div>
+
+            {/* Exercise Title Box */}
+            <div className="bg-[#e9ecef] dark:bg-slate-700 p-3 rounded text-slate-700 dark:text-slate-200 font-medium border border-slate-300 dark:border-slate-600">
+              {doc.title}
+            </div>
+
+            {/* 🎧 AUDIO PLAYER */}
+            <div className="w-full">
+              <audio 
+                ref={audioRef} 
+                src={doc.audioUrl} 
+                controls 
+                className="w-full h-12"
+                onPlay={() => {}} // Audio play hone par ab kuch nahi hoga
+              />
+              <p className="text-[11px] text-slate-500 mt-2 italic">
+                Note: Audio may take up to 10 seconds to load, please be patient.
+              </p>
+            </div>
+
+            {/* ⌨️ TYPING BOX (Auto-Scroll & No Spellcheck) */}
+            <textarea 
+              ref={textareaRef}
+              className="w-full h-[350px] p-4 border-2 border-slate-300 dark:border-slate-600 rounded outline-none focus:border-blue-500 text-lg md:text-xl leading-relaxed dark:bg-slate-900 dark:text-white resize-none shadow-inner overflow-y-auto"
+              placeholder="Type your transcription here..."
+              value={typedText}
+              spellCheck="false"
+              autoFocus
+              onChange={(e) => {
+                setTypedText(e.target.value);
+                // 🚀 FIRST LETTER PAR TIMER START
+                if (!isTimerActive && e.target.value.length > 0) {
+                  setIsTimerActive(true);
+                }
+              }}
+            />
+
+            {/* Action Buttons (As per your Image) */}
+            <div className="flex flex-col gap-2 mt-2">
+              <button 
+                onClick={() => setIsTimerActive(true)}
+                className="w-full bg-[#3b71ca] hover:bg-[#3462b0] text-white py-3 rounded font-medium transition-colors uppercase text-sm tracking-wide"
+              >
+                Start
+              </button>
+              
+              <button 
+                onClick={handleSubmit}
+                className="w-full bg-[#3b71ca] hover:bg-[#3462b0] text-white py-3 rounded font-medium transition-colors uppercase text-sm tracking-wide"
+              >
+                Submit
+              </button>
+            </div>
+
+            {/* Bottom Progress Bar (Dummy like image) */}
+            <div className="w-full bg-[#e9ecef] h-4 rounded-full overflow-hidden mt-2">
+              <div 
+                className="bg-[#d1e7dd] h-full transition-all duration-500" 
+                style={{ width: `${(typedText.length / 500) * 100}%` }}
+              ></div>
+            </div>
+
+          </div>
         </div>
       </div>
-
-      {/* 🎧 MINIMAL PLAYER */}
-      <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-2xl mb-4 border dark:border-slate-800 flex flex-wrap items-center gap-3">
-        <audio 
-          ref={audioRef} 
-          src={doc.audioUrl} 
-          controls 
-          className="h-10 flex-1 min-w-[200px]"
-          onPlay={() => setIsTimerActive(true)}
-        />
-        <p className="text-[9px] font-bold text-slate-400 uppercase italic">
-          Timer starts automatically on Play
-        </p>
-      </div>
-
-      {/* ⌨️ TYPING AREA: Optimized for Focus */}
-      <div className="relative group">
-        <textarea 
-          ref={textareaRef}
-          className="w-full h-[60vh] md:h-[65vh] bg-white dark:bg-slate-800 p-5 md:p-8 rounded-3xl border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 outline-none font-medium text-xl md:text-2xl leading-relaxed shadow-2xl dark:text-white resize-none transition-all overflow-y-auto"
-          placeholder="Start transcribing here..."
-          value={typedText}
-          onChange={(e) => {
-            setTypedText(e.target.value);
-            if (!isTimerActive) setIsTimerActive(true);
-          }}
-          spellCheck="false"
-          autoFocus
-        />
-        
-        {/* Floating Word Count (Optional but helpful) */}
-        <div className="absolute bottom-5 right-5 bg-blue-600/10 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black">
-          {typedText.trim() ? typedText.trim().split(/\s+/).length : 0} WORDS
-        </div>
-      </div>
-
-      {/* 🔵 SUBMIT BUTTON: Full Width & Large */}
-      <button 
-        onClick={handleSubmit} 
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black uppercase tracking-[0.2em] mt-6 shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-      >
-        <span>Submit Final Transcription</span>
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 5l7 7-7 7" />
-        </svg>
-      </button>
-
-      {/* Footer Info */}
-      <p className="text-center mt-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-        StenoPulse Exam Mode • Keyboard typing enabled
-      </p>
-
     </div>
   );
 };
