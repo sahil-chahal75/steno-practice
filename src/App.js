@@ -4,6 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 // Components Import
 import Navbar from './Navbar';
+import Sidebar from './Sidebar'; // Naya Sidebar import
 import Login from './Login';
 import Home from './Home';
 import TypingTool from './TypingTool';
@@ -17,6 +18,7 @@ const App = () => {
   const [testResult, setTestResult] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar control state
 
   // 📡 LOGIN STATUS CHECK
   useEffect(() => {
@@ -24,7 +26,7 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  // 🌙 DARK MODE ENGINE (PROPER FIX)
+  // 🌙 DARK MODE ENGINE
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -40,17 +42,27 @@ const App = () => {
   }
 
   return (
-    // Is div mein darkMode class ki wajah se transitions makkhan ki tarah chalengi
     <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-slate-900' : 'bg-slate-50'}`}>
       
       <div className="dark:text-slate-100 text-slate-900">
         
+        {/* Navbar mein setIsSidebarOpen pass kiya hai */}
         <Navbar 
           user={user} 
           setView={setView} 
           toggleTheme={toggleTheme} 
           darkMode={darkMode} 
           setShowAdmin={setShowAdmin}
+          setIsSidebarOpen={setIsSidebarOpen}
+        />
+
+        {/* Naya Sidebar Component */}
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          setIsOpen={setIsSidebarOpen} 
+          user={user} 
+          setView={setView} 
+          darkMode={darkMode} 
         />
 
         <main className="max-w-4xl mx-auto p-4 pt-8">
