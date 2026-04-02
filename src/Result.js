@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { auth, db } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const Result = ({ result, doc, setView, darkMode }) => {
   const originalText = doc.text;
@@ -20,29 +22,22 @@ const Result = ({ result, doc, setView, darkMode }) => {
     let halfMistakes = 0;
     let tIdx = 0;
 
-    // Word-to-Word Matching with Look-ahead (to prevent chain errors)
     for (let i = 0; i < oriArr.length; i++) {
       const ori = oriArr[i];
       const typ = typArr[tIdx];
 
       if (typ && clean(ori) === clean(typ)) {
-        // Case 1: Perfect Match
         report.push({ type: 'correct', word: typ });
         tIdx++;
-      } else if (typ && clean(oriArr[i+1]) === clean(typ)) {
-        // Case 2: Omission (Bacha ek word kha gaya)
+      } else if (typ && oriArr[i+1] && clean(oriArr[i+1]) === clean(typ)) {
         report.push({ type: 'missing', word: `(${ori})` });
         fullMistakes++;
-        // tIdx nahi badhayenge kyunki agla typed word agle original se match ho gaya
-      } else if (typ && clean(ori) === clean(typArr[tIdx+1])) {
-        // Case 3: Addition (Bache ne extra word likh diya)
+      } else if (typ && typArr[tIdx+1] && clean(ori) === clean(typArr[tIdx+1])) {
         report.push({ type: 'extra', word: typ });
         fullMistakes++;
         tIdx++;
-        i--; // Original word wahi rahega agle round ke liye
+        i--; 
       } else if (typ) {
-        // Case 4: Substitution (Galat word likha)
-        // Check for Half Mistake (Singular/Plural or Capitalization)
         if (ori.toLowerCase() === typ.toLowerCase() || ori.replace(/s$/,'') === typ.replace(/s$/,'')) {
           report.push({ type: 'half', word: typ, original: ori });
           halfMistakes += 0.5;
@@ -52,13 +47,11 @@ const Result = ({ result, doc, setView, darkMode }) => {
         }
         tIdx++;
       } else {
-        // Case 5: Leftover original words
         report.push({ type: 'missing', word: `(${ori})` });
         fullMistakes++;
       }
     }
 
-    // Extra typed words at the end
     while (tIdx < typArr.length) {
       report.push({ type: 'extra', word: typArr[tIdx] });
       fullMistakes++;
@@ -82,6 +75,31 @@ const Result = ({ result, doc, setView, darkMode }) => {
   };
 
   const data = calculateResult();
+
+  // 3. SAVE TO FIREBASE (Admin Records ke liye)
+  useEffect(() => {
+    const saveToDB = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          await addDoc(collection(db, "results"), {
+            userId: user.uid,
+            userName: user.displayName || "Student",
+            userEmail: user.email,
+            exerciseTitle: doc.title,
+            fullMistakes: data.fullMistakes,
+            halfMistakes: data.halfMistakes,
+            errorPercent: data.errorPercent,
+            status: data.isQualified ? 'QUALIFIED ✅' : 'DISQUALIFIED ❌',
+            submittedAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error("Error saving result:", err);
+        }
+      }
+    };
+    saveToDB();
+  }, []);
 
   return (
     <div className="animate-in fade-in zoom-in duration-500 max-w-4xl mx-auto pb-20">
@@ -137,11 +155,11 @@ const Result = ({ result, doc, setView, darkMode }) => {
 
         {/* INSTRUCTIONS BOX */}
         <div className="mt-10 grid grid-cols-2 gap-4 p-6 border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-3xl">
-          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-green-600 rounded-full"></span> <span className="dark:text-slate-400">RIGHT WORD</span></div>
-          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-red-700 rounded-full"></span> <span className="dark:text-slate-400">WRONG WORD (FULL)</span></div>
-          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-slate-400 rounded-full"></span> <span className="dark:text-slate-400">MISSING WORD (BLACK BOX)</span></div>
-          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-blue-600 rounded-full"></span> <span className="dark:text-slate-400">EXTRA WORD (BLUE)</span></div>
-          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-orange-500 rounded-full"></span> <span className="dark:text-slate-400">SINGULAR/PLURAL (HALF)</span></div>
+          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-green-600 rounded-full"></span> <span className="dark:text-slate-400 uppercase">Right Word</span></div>
+          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-red-700 rounded-full"></span> <span className="dark:text-slate-400 uppercase">Wrong Word (Full)</span></div>
+          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-slate-400 dark:bg-white rounded-full"></span> <span className="dark:text-slate-400 uppercase">Missing (Black Box)</span></div>
+          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-blue-600 rounded-full"></span> <span className="dark:text-slate-400 uppercase">Extra Word (Blue)</span></div>
+          <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-3 h-3 bg-orange-500 rounded-full"></span> <span className="dark:text-slate-400 uppercase">Half Mistake</span></div>
         </div>
 
         <button 
@@ -156,4 +174,3 @@ const Result = ({ result, doc, setView, darkMode }) => {
 };
 
 export default Result;
-          
