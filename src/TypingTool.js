@@ -24,23 +24,42 @@ const TypingTool = ({ doc, setView, setTestResult, darkMode }) => {
 
   // 2. Audio Progress Logic
   const handleTimeUpdate = () => {
-    const current = audioRef.current.currentTime;
-    const duration = audioRef.current.duration;
-    setCurrentTime(current);
-    setAudioProgress((current / duration) * 100);
+    if (audioRef.current) {
+      const current = audioRef.current.currentTime;
+      const duration = audioRef.current.duration;
+      setCurrentTime(current);
+      if (duration) setAudioProgress((current / duration) * 100);
+    }
   };
 
   const handleMetadata = () => {
-    setAudioDuration(audioRef.current.duration);
+    if (audioRef.current) setAudioDuration(audioRef.current.duration);
   };
 
+  // 3. Optimized Toggle (No Alert Pop-up)
   const toggleAudio = () => {
+    if (!audioRef.current) return;
+
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play().catch(e => alert("Audio loading... Wait 2 seconds or check Drive link."));
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((error) => {
+            console.log("Audio loading or blocked by browser. Retrying...");
+            // Manual retry logic without alert
+            setTimeout(() => {
+              audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+            }, 1000);
+          });
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const formatTime = (time) => {
@@ -77,30 +96,29 @@ const TypingTool = ({ doc, setView, setTestResult, darkMode }) => {
           {doc.title}
         </h2>
 
-        {/* 🎧 ADVANCED AUDIO PLAYER */}
+        {/* 🎧 ADVANCED AUDIO PLAYER - Fixed for Drive Links */}
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[2.5rem] mb-8 border border-slate-100 dark:border-slate-700 shadow-inner">
           <audio 
             ref={audioRef} 
             src={doc.audioUrl} 
+            crossOrigin="anonymous" 
+            preload="auto"
             onTimeUpdate={handleTimeUpdate} 
             onLoadedMetadata={handleMetadata}
             onEnded={() => setIsPlaying(false)}
           />
           
           <div className="flex items-center gap-4">
-            {/* Play/Pause Button */}
             <button onClick={toggleAudio} className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl shadow-xl transition-all active:scale-90 shrink-0 ${isPlaying ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}`}>
               {isPlaying ? '⏸' : '▶'}
             </button>
 
-            {/* Progress Bar & Timing */}
             <div className="w-full space-y-2">
               <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(audioDuration)}</span>
+                <span>{formatTime(audioDuration || 0)}</span>
               </div>
               
-              {/* Custom Seek Bar */}
               <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden relative">
                 <div 
                   className="h-full bg-blue-500 transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
@@ -114,11 +132,10 @@ const TypingTool = ({ doc, setView, setTestResult, darkMode }) => {
              <button onClick={() => setIsTimerActive(true)} className={`px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${isTimerActive ? 'bg-green-100 text-green-600 opacity-50 cursor-default' : 'bg-green-500 text-white shadow-lg shadow-green-200 animate-bounce'}`}>
                {isTimerActive ? 'Timer Started' : 'Start Typing Now'}
              </button>
-             <p className="text-[9px] font-bold text-slate-400 italic">Audio won't affect typing clock</p>
+             <p className="text-[9px] font-bold text-slate-400 italic">Audio controls won't stop the clock</p>
           </div>
         </div>
 
-        {/* Typing Area */}
         <textarea 
           className="w-full h-80 bg-slate-50 dark:bg-slate-900 dark:text-slate-100 p-6 rounded-[2rem] border-2 border-transparent focus:border-blue-500 outline-none font-medium text-lg leading-relaxed shadow-inner transition-all resize-none"
           placeholder="Start typing your transcription here..."
