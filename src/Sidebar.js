@@ -36,7 +36,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
         name: user.displayName, 
         email: user.email 
       }, { merge: true });
-      alert("Profile Update Ho Gayi! ✅");
+      alert("Profile Updated! ✅");
     } catch (e) {
       alert("Error: " + e.message);
     }
@@ -52,7 +52,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
         time: new Date(), 
         read: false 
       });
-      alert("Message Sahil Sir ko bhej diya gaya hai! 📩");
+      alert("Message sent to Admin! 📩");
       setMsg('');
     } catch (e) { alert(e.message); }
   };
