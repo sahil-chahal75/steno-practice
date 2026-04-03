@@ -4,7 +4,7 @@ export const siteConfig = {
   adminEmail: "sahilchahalkuk@gmail.com", // Authorized Admin
   heroMessage: "Focus, Type, and Conquer!",
   
-  // 🎨 DARK MODE & THEME COLORS (New)
+  // 🎨 DARK MODE & THEME COLORS
   theme: {
     primary: "#2563eb", // Blue-600
     darkBg: "#0f172a",  // Slate-900 (Main background)
@@ -14,7 +14,18 @@ export const siteConfig = {
 
   categories: [
     { id: "kc", name: "KC Magazine", icon: "📘" },
-    { id: "prog", name: "Progressive Magazine", icon: "📈" },
+    { 
+      id: "prog", 
+      name: "Progressive Magazine", 
+      icon: "📈",
+      // ✨ NAYA: Nested Structure logic for Home.js
+      hasSubfolders: true,
+      years: ["2026", "2027", "2028"],
+      months: [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ]
+    },
     { id: "speed", name: "Speedography", icon: "⚡" },
     { id: "misc", name: "Miscellaneous Matter", icon: "📁" }
   ],
@@ -24,6 +35,6 @@ export const siteConfig = {
     "Auto-Mistake Calculator",
     "Download PDF Result",
     "Global Leaderboard",
-    "Dark Mode Support" // Ek naya feature add kar diya list mein
+    "Dark Mode Support"
   ]
 };
