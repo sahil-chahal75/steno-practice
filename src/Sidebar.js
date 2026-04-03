@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 const Sidebar = ({ isOpen, setIsOpen, user }) => {
   const [activeTab, setActiveTab] = useState('menu'); 
   const [profile, setProfile] = useState({ phone: '', edu: '', gender: 'Male', city: '', pin: '' });
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState([]); // Results history
+  const [userMessages, setUserMessages] = useState([]); // 💬 Messages with Replies
   const [msg, setMsg] = useState('');
 
-  // ✨ BACK BUTTON FIX: Agar Sidebar khula hai aur back dabaya, to sirf menu close ho
+  // ✨ BACK BUTTON FIX
   useEffect(() => {
     if (isOpen) {
       window.history.pushState({ sidebar: 'open' }, '');
     }
-
-    const handleBack = () => {
-      if (isOpen) {
-        setIsOpen(false);
-      }
-    };
-
+    const handleBack = () => { if (isOpen) setIsOpen(false); };
     window.addEventListener('popstate', handleBack);
     return () => window.removeEventListener('popstate', handleBack);
   }, [isOpen, setIsOpen]);
 
+  // 👤 FETCH PROFILE
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
@@ -34,6 +30,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
     if (activeTab === 'profile') fetchProfile();
   }, [activeTab, user]);
 
+  // 📈 FETCH RESULTS HISTORY
   useEffect(() => {
     const fetchHistory = async () => {
       if (!user) return;
@@ -45,31 +42,44 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
     if (activeTab === 'progress') fetchHistory();
   }, [activeTab, user]);
 
+  // 💬 FETCH MESSAGES & REPLIES
+  useEffect(() => {
+    const fetchUserMessages = async () => {
+      if (!user) return;
+      // Fetching latest 10 messages from this user
+      const q = query(
+        collection(db, "messages"), 
+        where("email", "==", user.email),
+        orderBy("time", "desc"),
+        limit(10)
+      );
+      const snap = await getDocs(q);
+      setUserMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    };
+    if (activeTab === 'message') fetchUserMessages();
+  }, [activeTab, user]);
+
   const saveProfile = async () => {
     try {
-      await setDoc(doc(db, "users", user.uid), { 
-        ...profile, 
-        name: user.displayName, 
-        email: user.email 
-      }, { merge: true });
+      await setDoc(doc(db, "users", user.uid), { ...profile, name: user.displayName, email: user.email }, { merge: true });
       alert("Profile Updated! ✅");
-    } catch (e) {
-      alert("Error: " + e.message);
-    }
+    } catch (e) { alert("Error: " + e.message); }
   };
 
   const sendMessage = async () => {
     if (!msg) return;
     try {
-      await setDoc(doc(collection(db, "messages")), { 
+      await addDoc(collection(db, "messages"), { 
         sender: user.displayName, 
         email: user.email, 
         text: msg, 
         time: new Date(), 
-        read: false 
+        read: false,
+        replyText: null // Placeholder for Admin's reply
       });
       alert("Message sent to Admin! 📩");
       setMsg('');
+      setActiveTab('menu'); // Go back after sending
     } catch (e) { alert(e.message); }
   };
 
@@ -85,6 +95,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
           <button onClick={() => setIsOpen(false)} className="text-2xl font-bold dark:text-white">✕</button>
         </div>
 
+        {/* --- MAIN MENU --- */}
         {activeTab === 'menu' && (
           <div className="space-y-4">
             <button onClick={() => setActiveTab('profile')} className="w-full text-left p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 font-bold uppercase text-[10px] tracking-widest dark:text-white border dark:border-slate-700">👤 My Profile</button>
@@ -95,6 +106,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
           </div>
         )}
 
+        {/* --- PROFILE TAB --- */}
         {activeTab === 'profile' && (
           <div className="space-y-3">
             <button onClick={() => setActiveTab('menu')} className="text-[10px] font-black text-blue-600 mb-4 uppercase">← Back</button>
@@ -106,6 +118,7 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
           </div>
         )}
 
+        {/* --- PROGRESS TAB --- */}
         {activeTab === 'progress' && (
           <div className="space-y-3">
             <button onClick={() => setActiveTab('menu')} className="text-[10px] font-black text-blue-600 mb-4 uppercase">← Back</button>
@@ -118,11 +131,27 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
           </div>
         )}
 
+        {/* --- MESSAGE TAB (NEW: SHOWS REPLIES) --- */}
         {activeTab === 'message' && (
           <div className="space-y-4">
             <button onClick={() => setActiveTab('menu')} className="text-[10px] font-black text-blue-600 uppercase">← Back</button>
-            <textarea placeholder="Write message..." className="w-full h-32 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 text-sm dark:text-white" value={msg} onChange={e=>setMsg(e.target.value)} />
-            <button onClick={sendMessage} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Send</button>
+            
+            <div className="max-h-64 overflow-y-auto space-y-3 mb-2 pr-1 custom-scrollbar">
+              {userMessages.length > 0 ? userMessages.map((m, i) => (
+                <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border dark:border-slate-700">
+                  <p className="text-[11px] font-bold dark:text-white">You: {m.text}</p>
+                  {m.replyText && (
+                    <div className="mt-2 pl-3 border-l-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-r-xl">
+                      <p className="text-[9px] font-black text-blue-600 uppercase">Admin Reply:</p>
+                      <p className="text-[10px] italic dark:text-slate-200">{m.replyText}</p>
+                    </div>
+                  )}
+                </div>
+              )) : <p className="text-[10px] text-slate-400 italic text-center py-4">No previous conversations.</p>}
+            </div>
+
+            <textarea placeholder="Write message to admin..." className="w-full h-24 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 text-sm dark:text-white outline-none" value={msg} onChange={e=>setMsg(e.target.value)} />
+            <button onClick={sendMessage} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Send Message</button>
           </div>
         )}
       </div>
