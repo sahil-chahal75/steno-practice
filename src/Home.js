@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
-import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, doc, getDoc } from 'firebase/firestore';
 import { siteConfig } from './config';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,10 +10,34 @@ const Home = ({ setActiveDoc }) => {
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [dictations, setDictations] = useState([]);
   const [userStats, setUserStats] = useState(null);
+  const [announcement, setAnnouncement] = useState(''); // 📢 Announcement State
+  const [isBlocked, setIsBlocked] = useState(false); // 🚫 Block Status
   
   const navigate = useNavigate();
 
-  // 📡 User Performance Fetch
+  // 📡 FETCH ANNOUNCEMENT & USER STATUS
+  useEffect(() => {
+    // 1. Get Global Announcement
+    const unsubNotice = onSnapshot(doc(db, "settings", "announcement"), (doc) => {
+      if (doc.exists()) setAnnouncement(doc.data().text);
+    });
+
+    // 2. Check if Current User is Blocked
+    const checkUserStatus = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().isBlocked) {
+          setIsBlocked(true);
+        }
+      }
+    };
+    checkUserStatus();
+
+    return () => unsubNotice();
+  }, []);
+
+  // 📡 FETCH USER PERFORMANCE
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
@@ -34,18 +58,20 @@ const Home = ({ setActiveDoc }) => {
     }
   }, []);
 
-  // 📡 Dictations Fetch (Filters for Year & Month)
+  // 📡 FETCH DICTATIONS (Published Only)
   useEffect(() => {
     if (selectedCat) {
-      let queryConstraints = [where("cat", "==", selectedCat.id)];
+      // 🚨 CRITICAL: Only fetch dictations where status is 'published'
+      let queryConstraints = [
+        where("cat", "==", selectedCat.id),
+        where("status", "==", "published") 
+      ];
       
-      // Agar progressive folder structure hai
       if (selectedCat.hasSubfolders) {
         if (selectedYear) queryConstraints.push(where("year", "==", selectedYear));
         if (selectedMonth) queryConstraints.push(where("month", "==", selectedMonth));
       }
 
-      // Fetch tabhi karo jab saare filters apply ho jayein ya normal category ho
       if (!selectedCat.hasSubfolders || (selectedYear && selectedMonth)) {
         const q = query(collection(db, "dictations"), ...queryConstraints);
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -55,33 +81,49 @@ const Home = ({ setActiveDoc }) => {
         });
         return () => unsubscribe();
       } else {
-        setDictations([]); // Beech wale steps par list khali rakho
+        setDictations([]);
       }
     }
   }, [selectedCat, selectedYear, selectedMonth]);
 
-  // Folder Back Navigation Logic
   const handleBack = () => {
     if (selectedMonth) setSelectedMonth(null);
     else if (selectedYear) setSelectedYear(null);
     else setSelectedCat(null);
   };
 
+  // 🚫 BLOCK OVERLAY
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center">
+        <div className="bg-white dark:bg-slate-800 p-10 rounded-[3rem] shadow-2xl border-2 border-red-500">
+          <h1 className="text-4xl font-black text-red-600 uppercase mb-4">Access Restricted</h1>
+          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">
+            Your account has been suspended by the administrator. <br/> 
+            Please contact support for further information.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen pb-20 overflow-hidden">
-      <div 
-        className="fixed inset-0 z-0 opacity-20 dark:opacity-25 pointer-events-none"
-        style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=2070&auto=format&fit=crop')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
+      <div className="fixed inset-0 z-0 opacity-20 dark:opacity-25 pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=2070&auto=format&fit=crop')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
       <div className="relative z-10 p-4">
+        
+        {/* 📢 ANNOUNCEMENT TICKER */}
+        {announcement && (
+          <div className="mb-6 bg-blue-600 text-white p-3 rounded-2xl shadow-lg overflow-hidden relative">
+            <div className="whitespace-nowrap animate-marquee font-black uppercase text-[10px] tracking-widest">
+              📢 NOTICE: {announcement} — {announcement}
+            </div>
+          </div>
+        )}
+
         {!selectedCat ? (
           <div className="animate-in fade-in slide-in-from-top-4 duration-700">
-            {/* 👋 WELCOME HEADER */}
             <div className="mb-10 text-center">
               <h1 className="text-5xl font-black italic tracking-tighter text-slate-900 dark:text-white uppercase">
                 STENO<span className="text-blue-600">PULSE</span>
@@ -92,9 +134,8 @@ const Home = ({ setActiveDoc }) => {
               </p>
             </div>
 
-            {/* 📈 PERFORMANCE MINI-DASHBOARD */}
             <div className="mb-12 bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden group">
-              <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 opacity-80 italic">Last Performance</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 opacity-80 italic">Recent Performance</h3>
               {userStats ? (
                 <div className="flex justify-between items-end">
                   <div>
@@ -106,16 +147,15 @@ const Home = ({ setActiveDoc }) => {
                   </div>
                 </div>
               ) : (
-                <p className="font-bold italic text-sm">Welcome Sahil! Start your first test today. 🚀</p>
+                <p className="font-bold italic text-sm">Welcome to StenoPulse! Start your training journey today. 🚀</p>
               )}
             </div>
 
-            {/* 💠 CATEGORY GRID */}
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 ml-4">Training Centers</h4>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 ml-4">Training Departments</h4>
             <div className="grid grid-cols-2 gap-6 mb-16">
               {siteConfig.categories.map((cat) => (
-                <div key={cat.id} onClick={() => setSelectedCat(cat)} className="relative group cursor-pointer">
-                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-xl text-center active:scale-95 transition-all">
+                <div key={cat.id} onClick={() => setSelectedCat(cat)} className="relative group cursor-pointer active:scale-95 transition-transform">
+                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-xl text-center border-t border-white/50 dark:border-slate-700">
                     <span className="text-6xl block mb-4">{cat.icon}</span>
                     <h2 className="font-black uppercase text-[11px] tracking-widest text-slate-800 dark:text-slate-100">{cat.name}</h2>
                   </div>
@@ -124,20 +164,15 @@ const Home = ({ setActiveDoc }) => {
             </div>
           </div>
         ) : (
-          /* 📂 FOLDER & LIST VIEW */
           <div className="animate-in slide-in-from-right duration-500">
-            <button 
-              onClick={handleBack} 
-              className="mb-8 font-black text-blue-600 dark:text-blue-400 text-[10px] uppercase tracking-widest flex items-center"
-            >
-              ← Back
+            <button onClick={handleBack} className="mb-8 font-black text-blue-600 dark:text-blue-400 text-[10px] uppercase tracking-widest flex items-center">
+              ← Return to Hub
             </button>
             
             <h2 className="text-4xl font-black uppercase italic mb-10 text-slate-900 dark:text-white leading-none">
               {selectedMonth || selectedYear || selectedCat.name}
             </h2>
 
-            {/* Step 1: Show Years for Progressive */}
             {selectedCat.hasSubfolders && !selectedYear && (
               <div className="grid grid-cols-2 gap-6">
                 {selectedCat.years.map(year => (
@@ -148,7 +183,6 @@ const Home = ({ setActiveDoc }) => {
               </div>
             )}
 
-            {/* Step 2: Show Months if Year selected */}
             {selectedYear && !selectedMonth && (
               <div className="grid grid-cols-2 gap-4">
                 {selectedCat.months.map(month => (
@@ -159,15 +193,10 @@ const Home = ({ setActiveDoc }) => {
               </div>
             )}
 
-            {/* Step 3: Show Final Dictations */}
             {(!selectedCat.hasSubfolders || (selectedYear && selectedMonth)) && (
               <div className="space-y-6">
                 {dictations.length > 0 ? dictations.map((d) => (
-                  <div 
-                    key={d.id} 
-                    onClick={() => { setActiveDoc(d); navigate('/typing'); }}
-                    className="bg-white/90 dark:bg-slate-800/90 p-7 rounded-[2.5rem] shadow-xl flex justify-between items-center cursor-pointer group"
-                  >
+                  <div key={d.id} onClick={() => { setActiveDoc(d); navigate('/typing'); }} className="bg-white/90 dark:bg-slate-800/90 p-7 rounded-[2.5rem] shadow-xl flex justify-between items-center cursor-pointer group">
                     <div className="flex items-center gap-5">
                       <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black">
                         {d.title.charAt(0)}
@@ -180,7 +209,9 @@ const Home = ({ setActiveDoc }) => {
                     <div className="bg-blue-600 text-white p-3 rounded-2xl group-hover:scale-110 transition-transform">🚀</div>
                   </div>
                 )) : (
-                  <p className="text-center py-20 text-slate-400 font-black uppercase text-xs">No data in this folder</p>
+                  <div className="text-center py-20 text-slate-400 font-black uppercase text-[10px]">
+                    No Active Tests Found In This Directory
+                  </div>
                 )}
               </div>
             )}
