@@ -2,27 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { siteConfig } from './config';
+// 1. Navigation tool import karo
+import { useNavigate } from 'react-router-dom';
 
-const Home = ({ setView, setActiveDoc }) => {
+const Home = ({ setActiveDoc }) => {
   const [selectedCat, setSelectedCat] = useState(null);
   const [dictations, setDictations] = useState([]);
   const [userStats, setUserStats] = useState(null);
+  
+  // 2. Navigate function initialize karo
+  const navigate = useNavigate();
 
-  // 📡 User Performance (Bina orderBy ke taaki error na aaye)
+  // 📡 User Performance Fetch
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
       const q = query(
         collection(db, "results"),
         where("userId", "==", user.uid),
-        limit(10) // Zyada results mangwa liye taaki latest mil sake
+        limit(10)
       );
       const unsub = onSnapshot(q, (snap) => {
         if (!snap.empty) {
-          // Manual Sort: Frontend par latest result nikal rahe hain
           const sorted = snap.docs
             .map(d => d.data())
-            .sort((a, b) => b.submittedAt?.seconds - a.submittedAt?.seconds);
+            .sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
           setUserStats(sorted[0]);
         }
       });
@@ -30,7 +34,7 @@ const Home = ({ setView, setActiveDoc }) => {
     }
   }, []);
 
-  // 📡 Dictations Fetch (Bina orderBy ke - 100% Fix for Blank Screen)
+  // 📡 Dictations Fetch
   useEffect(() => {
     if (selectedCat) {
       const q = query(
@@ -39,8 +43,7 @@ const Home = ({ setView, setActiveDoc }) => {
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Naye tests ko upar dikhane ke liye manual sort
-        const sortedData = data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+        const sortedData = data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setDictations(sortedData);
       });
       return () => unsubscribe();
@@ -50,7 +53,7 @@ const Home = ({ setView, setActiveDoc }) => {
   return (
     <div className="relative min-h-screen pb-20 overflow-hidden">
       
-      {/* 🖼️ COMPUTER BACKGROUND (Clearer Opacity 20%) */}
+      {/* 🖼️ BACKGROUND */}
       <div 
         className="fixed inset-0 z-0 opacity-20 dark:opacity-25 pointer-events-none transition-opacity"
         style={{
@@ -75,7 +78,7 @@ const Home = ({ setView, setActiveDoc }) => {
               </p>
             </div>
 
-            {/* 📈 PERFORMANCE MINI-DASHBOARD */}
+            {/* 📈 MINI-DASHBOARD */}
             <div className="mb-12 bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden group">
               <div className="absolute -right-10 -top-10 text-9xl opacity-10 group-hover:rotate-12 transition-transform">📊</div>
               <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 opacity-80 italic">Your Last Performance</h3>
@@ -85,7 +88,7 @@ const Home = ({ setView, setActiveDoc }) => {
                     <p className="text-3xl font-black italic">{userStats.errorPercent}% <span className="text-sm font-medium opacity-60">Errors</span></p>
                     <p className="text-[10px] mt-1 font-bold uppercase opacity-70 tracking-tighter">{userStats.exerciseTitle}</p>
                   </div>
-                  <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-lg ${userStats.status.includes('QUALIFIED') ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'}`}>
+                  <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-lg ${userStats.status?.includes('QUALIFIED') ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'}`}>
                     {userStats.status}
                   </div>
                 </div>
@@ -94,15 +97,11 @@ const Home = ({ setView, setActiveDoc }) => {
               )}
             </div>
 
-            {/* 💠 MODERN CATEGORY GRID */}
+            {/* 💠 CATEGORY GRID */}
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 ml-4">Training Centers</h4>
             <div className="grid grid-cols-2 gap-6 mb-16">
               {siteConfig.categories.map((cat) => (
-                <div 
-                  key={cat.id} 
-                  onClick={() => setSelectedCat(cat)}
-                  className="relative group cursor-pointer"
-                >
+                <div key={cat.id} onClick={() => setSelectedCat(cat)} className="relative group cursor-pointer">
                   <div className="absolute inset-0 bg-blue-600 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-20 transition-all"></div>
                   <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-xl border-t border-l border-white/50 dark:border-slate-700 text-center active:scale-95 transition-all">
                     <span className="text-6xl block transform group-hover:scale-110 transition-transform mb-4">{cat.icon}</span>
@@ -113,7 +112,7 @@ const Home = ({ setView, setActiveDoc }) => {
               ))}
             </div>
 
-            {/* ✨ FEATURES SECTION */}
+            {/* ✨ FEATURES */}
             <div className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-md p-10 rounded-[3rem] border border-slate-200 dark:border-slate-700 mb-10">
                <h3 className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-10 italic">Premium Advantages</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -149,7 +148,8 @@ const Home = ({ setView, setActiveDoc }) => {
               {dictations.length > 0 ? dictations.map((d) => (
                 <div 
                   key={d.id} 
-                  onClick={() => { setActiveDoc(d); setView('typing'); }}
+                  // 3. setView ki jagah navigate('/typing') use kiya
+                  onClick={() => { setActiveDoc(d); navigate('/typing'); }}
                   className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-7 rounded-[2.5rem] shadow-xl border border-white/50 dark:border-slate-700 flex justify-between items-center cursor-pointer hover:border-blue-500 transition-all hover:translate-y-[-4px] group"
                 >
                   <div className="flex items-center gap-5">
