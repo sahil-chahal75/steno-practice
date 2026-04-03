@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-// 1. Router Imports
+import { doc, getDoc } from 'firebase/firestore';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Components Import
@@ -13,19 +13,35 @@ import TypingTool from './TypingTool';
 import Result from './Result';
 import AdminPanel from './AdminPanel';
 
+// NEW COMPONENTS (Inka code main agle step mein dunga)
+import TypingArena from './TypingArena'; 
+import TypingResult from './TypingResult';
+
 const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeDoc, setActiveDoc] = useState(null);
   const [testResult, setTestResult] = useState(null);
+  const [typingResultData, setTypingResultData] = useState(null); // Separate state for typing
   const [darkMode, setDarkMode] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // LOGIN STATUS CHECK
+  // LOGIN STATUS & BLOCK CHECK
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        // Checking if user is blocked before letting them in
+        const userDoc = await getDoc(doc(db, "users", u.uid));
+        if (userDoc.exists() && userDoc.data().isBlocked) {
+          auth.signOut();
+          alert("Your account is restricted. Contact Admin.");
+        } else {
+          setUser(u);
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -33,11 +49,8 @@ const App = () => {
 
   // DARK MODE ENGINE
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (darkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [darkMode]);
 
   const toggleTheme = () => setDarkMode(!darkMode);
@@ -55,7 +68,6 @@ const App = () => {
       <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-slate-900' : 'bg-slate-50'}`}>
         <div className="dark:text-slate-100 text-slate-900">
           
-          {/* Navbar aur Sidebar hamesha dikhenge agar user login hai */}
           {user && (
             <>
               <Navbar 
@@ -76,28 +88,26 @@ const App = () => {
 
           <main className="max-w-4xl mx-auto p-4 pt-8">
             <Routes>
-              {/* 2. Routing Logic */}
-              <Route 
-                path="/" 
-                element={user ? <Home setActiveDoc={setActiveDoc} /> : <Navigate to="/login" />} 
-              />
+              {/* DASHBOARD */}
+              <Route path="/" element={user ? <Home setActiveDoc={setActiveDoc} /> : <Navigate to="/login" />} />
               
+              {/* AUTH */}
+              <Route path="/login" element={!user ? <Login darkMode={darkMode} toggleTheme={toggleTheme} /> : <Navigate to="/" />} />
+
+              {/* 🎙️ STENO MODE ROUTES */}
+              <Route path="/typing" element={user && activeDoc ? <TypingTool doc={activeDoc} setTestResult={setTestResult} /> : <Navigate to="/" />} />
+              <Route path="/result" element={user && testResult ? <Result result={testResult} doc={activeDoc} /> : <Navigate to="/" />} />
+
+              {/* ⌨️ SIMPLE TYPING MODE ROUTES */}
               <Route 
-                path="/login" 
-                element={!user ? <Login darkMode={darkMode} toggleTheme={toggleTheme} /> : <Navigate to="/" />} 
+                path="/typing-arena" 
+                element={user && activeDoc ? <TypingArena doc={activeDoc} setTypingResultData={setTypingResultData} /> : <Navigate to="/" />} 
+              />
+              <Route 
+                path="/typing-result" 
+                element={user && typingResultData ? <TypingResult result={typingResultData} doc={activeDoc} /> : <Navigate to="/" />} 
               />
 
-              <Route 
-                path="/typing" 
-                element={user && activeDoc ? <TypingTool doc={activeDoc} setTestResult={setTestResult} /> : <Navigate to="/" />} 
-              />
-
-              <Route 
-                path="/result" 
-                element={user && testResult ? <Result result={testResult} doc={activeDoc} /> : <Navigate to="/" />} 
-              />
-
-              {/* Catch-all route */}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </main>
