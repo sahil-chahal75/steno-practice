@@ -68,12 +68,14 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
             {/* 🎧 AUDIO PLAYER */}
             <div className="w-full">
               <audio 
-                ref={audioRef} 
-                src={doc.audioUrl} 
-                controls 
-                className="w-full h-12"
-                onPlay={() => {}} // Audio play hone par ab kuch nahi hoga
-              />
+  ref={audioRef} 
+  src={doc.audioUrl} 
+  controls 
+  preload="auto" 
+  crossOrigin="anonymous"
+  className="w-full h-12"
+/>
+
               <p className="text-[11px] text-slate-500 mt-2 italic">
                 Note: Audio may take up to 10 seconds to load, please be patient.
               </p>
