@@ -8,6 +8,22 @@ const Sidebar = ({ isOpen, setIsOpen, user }) => {
   const [history, setHistory] = useState([]);
   const [msg, setMsg] = useState('');
 
+  // ✨ BACK BUTTON FIX: Agar Sidebar khula hai aur back dabaya, to sirf menu close ho
+  useEffect(() => {
+    if (isOpen) {
+      window.history.pushState({ sidebar: 'open' }, '');
+    }
+
+    const handleBack = () => {
+      if (isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handleBack);
+    return () => window.removeEventListener('popstate', handleBack);
+  }, [isOpen, setIsOpen]);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
