@@ -1,40 +1,49 @@
 export const siteConfig = {
   name: "StenoPulse", 
   adminName: "SAHIL CHAHAL",
-  adminEmail: "sahilchahalkuk@gmail.com", // Authorized Admin
+  adminEmail: "sahilchahalkuk@gmail.com", // ✅ Tumhari sahi ID ab set hai
   heroMessage: "Focus, Type, and Conquer!",
   
-  // 🎨 DARK MODE & THEME COLORS
+  // 🎨 THEME COLORS
   theme: {
-    primary: "#2563eb", // Blue-600
-    darkBg: "#0f172a",  // Slate-900 (Main background)
-    darkCard: "#1e293b", // Slate-800 (Boxes/Cards background)
-    accent: "#10b981",   // Green-500 (Success/Qualified)
+    primary: "#2563eb", 
+    darkBg: "#0f172a",  
+    darkCard: "#1e293b", 
+    accent: "#10b981",   
   },
 
+  // 📂 STENO & TYPING CATEGORIES (Combined for Admin & Home)
   categories: [
-    { id: "kc", name: "KC Magazine", icon: "📘" },
+    // Steno Hub
+    { id: "kc", name: "KC Magazine", icon: "📘", hasSubfolders: false },
     { 
       id: "prog", 
       name: "Progressive Magazine", 
       icon: "📈",
-      // ✨ NAYA: Nested Structure logic for Home.js
       hasSubfolders: true,
-      years: ["2026", "2027", "2028"],
+      years: ["2024", "2025", "2026", "2027", "2028"],
       months: [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
       ]
     },
-    { id: "speed", name: "Speedography", icon: "⚡" },
-    { id: "misc", name: "Miscellaneous Matter", icon: "📁" }
+    { id: "speed", name: "Speedography", icon: "⚡", hasSubfolders: false },
+    { id: "misc", name: "Miscellaneous", icon: "📁", hasSubfolders: false },
+
+    // Typing Arena (Inka ID Admin Panel ke options se match karta hai)
+    { id: "gen", name: "General Typing", icon: "📄" },
+    { id: "legal", name: "Legal Matter", icon: "⚖️" },
+    { id: "tech", name: "Technology", icon: "💻" },
+    { id: "essay", name: "Essay Typing", icon: "✍️" },
+    { id: "poly", name: "Political Matter", icon: "🏛️" },
+    { id: "misc_type", name: "Misc Typing", icon: "⌨️" }
   ],
 
   features: [
-    "Real Exam Interface",
-    "Auto-Mistake Calculator",
-    "Download PDF Result",
-    "Global Leaderboard",
-    "Dark Mode Support"
+    "Modern Dictation Typing Tool",
+    "Modern Automatic Calculator",
+    "Full Detailed Result (Full/Half Mistake)",
+    "Download Result (Original & Typed)",
+    "Zero-Highlight Exam Mode"
   ]
 };
