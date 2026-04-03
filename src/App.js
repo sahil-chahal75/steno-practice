@@ -12,26 +12,36 @@ import Home from './Home';
 import TypingTool from './TypingTool';
 import Result from './Result';
 import AdminPanel from './AdminPanel';
-
-// NEW COMPONENTS (Inka code main agle step mein dunga)
 import TypingArena from './TypingArena'; 
 import TypingResult from './TypingResult';
 
 const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeDoc, setActiveDoc] = useState(null);
-  const [testResult, setTestResult] = useState(null);
-  const [typingResultData, setTypingResultData] = useState(null); // Separate state for typing
   const [darkMode, setDarkMode] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // LOGIN STATUS & BLOCK CHECK
+  // 🛠️ REFRESH FIX: Persistent States using localStorage
+  const [activeDoc, setActiveDoc] = useState(() => {
+    const saved = localStorage.getItem('activeDoc');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [testResult, setTestResult] = useState(() => {
+    const saved = localStorage.getItem('testResult');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [typingResultData, setTypingResultData] = useState(() => {
+    const saved = localStorage.getItem('typingResultData');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Auth & Block Check
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        // Checking if user is blocked before letting them in
         const userDoc = await getDoc(doc(db, "users", u.uid));
         if (userDoc.exists() && userDoc.data().isBlocked) {
           auth.signOut();
@@ -47,7 +57,21 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  // DARK MODE ENGINE
+  // Sync States to LocalStorage
+  useEffect(() => {
+    if (activeDoc) localStorage.setItem('activeDoc', JSON.stringify(activeDoc));
+    else localStorage.removeItem('activeDoc');
+  }, [activeDoc]);
+
+  useEffect(() => {
+    if (testResult) localStorage.setItem('testResult', JSON.stringify(testResult));
+  }, [testResult]);
+
+  useEffect(() => {
+    if (typingResultData) localStorage.setItem('typingResultData', JSON.stringify(typingResultData));
+  }, [typingResultData]);
+
+  // Dark Mode Engine
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
@@ -86,7 +110,7 @@ const App = () => {
             </>
           )}
 
-          <main className="max-w-4xl mx-auto p-4 pt-8">
+          <main className="max-w-5xl mx-auto p-4 pt-8">
             <Routes>
               {/* DASHBOARD */}
               <Route path="/" element={user ? <Home setActiveDoc={setActiveDoc} /> : <Navigate to="/login" />} />
@@ -98,7 +122,7 @@ const App = () => {
               <Route path="/typing" element={user && activeDoc ? <TypingTool doc={activeDoc} setTestResult={setTestResult} /> : <Navigate to="/" />} />
               <Route path="/result" element={user && testResult ? <Result result={testResult} doc={activeDoc} /> : <Navigate to="/" />} />
 
-              {/* ⌨️ SIMPLE TYPING MODE ROUTES */}
+              {/* ⌨️ TYPING ARENA ROUTES */}
               <Route 
                 path="/typing-arena" 
                 element={user && activeDoc ? <TypingArena doc={activeDoc} setTypingResultData={setTypingResultData} /> : <Navigate to="/" />} 
@@ -112,6 +136,7 @@ const App = () => {
             </Routes>
           </main>
 
+          {/* ADMIN MODAL */}
           {showAdmin && user && (
             <AdminPanel setShowAdmin={setShowAdmin} user={user} />
           )}
