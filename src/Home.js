@@ -10,19 +10,17 @@ const Home = ({ setActiveDoc }) => {
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [dictations, setDictations] = useState([]);
   const [userStats, setUserStats] = useState(null);
-  const [announcement, setAnnouncement] = useState(''); // 📢 Announcement State
-  const [isBlocked, setIsBlocked] = useState(false); // 🚫 Block Status
+  const [announcement, setAnnouncement] = useState(''); 
+  const [isBlocked, setIsBlocked] = useState(false); 
   
   const navigate = useNavigate();
 
   // 📡 FETCH ANNOUNCEMENT & USER STATUS
   useEffect(() => {
-    // 1. Get Global Announcement
     const unsubNotice = onSnapshot(doc(db, "settings", "announcement"), (doc) => {
       if (doc.exists()) setAnnouncement(doc.data().text);
     });
 
-    // 2. Check if Current User is Blocked
     const checkUserStatus = async () => {
       const user = auth.currentUser;
       if (user) {
@@ -61,7 +59,6 @@ const Home = ({ setActiveDoc }) => {
   // 📡 FETCH DICTATIONS (Published Only)
   useEffect(() => {
     if (selectedCat) {
-      // 🚨 CRITICAL: Only fetch dictations where status is 'published'
       let queryConstraints = [
         where("cat", "==", selectedCat.id),
         where("status", "==", "published") 
@@ -92,7 +89,6 @@ const Home = ({ setActiveDoc }) => {
     else setSelectedCat(null);
   };
 
-  // 🚫 BLOCK OVERLAY
   if (isBlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-center">
@@ -113,7 +109,6 @@ const Home = ({ setActiveDoc }) => {
 
       <div className="relative z-10 p-4">
         
-        {/* 📢 ANNOUNCEMENT TICKER */}
         {announcement && (
           <div className="mb-6 bg-blue-600 text-white p-3 rounded-2xl shadow-lg overflow-hidden relative">
             <div className="whitespace-nowrap animate-marquee font-black uppercase text-[10px] tracking-widest">
@@ -134,7 +129,8 @@ const Home = ({ setActiveDoc }) => {
               </p>
             </div>
 
-            <div className="mb-12 bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden group">
+            {/* Performance Card */}
+            <div className="mb-8 bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden group">
               <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 opacity-80 italic">Recent Performance</h3>
               {userStats ? (
                 <div className="flex justify-between items-end">
@@ -149,6 +145,23 @@ const Home = ({ setActiveDoc }) => {
               ) : (
                 <p className="font-bold italic text-sm">Welcome to StenoPulse! Start your training journey today. 🚀</p>
               )}
+            </div>
+
+            {/* ✨ NEW: TYPING EXAMINATION SECTION */}
+            <div 
+              onClick={() => navigate('/typing-practice')}
+              className="mb-10 bg-white dark:bg-slate-800 p-6 rounded-[2.5rem] shadow-xl border-2 border-blue-100 dark:border-slate-700 cursor-pointer active:scale-95 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="text-4xl group-hover:rotate-12 transition-transform">⌨️</div>
+                <div>
+                  <h2 className="font-black uppercase text-[12px] tracking-widest text-slate-800 dark:text-white italic">Typing Examination Hall</h2>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Improve your speed with real-time test simulations</p>
+                </div>
+              </div>
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-black group-hover:translate-x-2 transition-transform">
+                →
+              </div>
             </div>
 
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 ml-4">Training Departments</h4>
