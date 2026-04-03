@@ -5,8 +5,7 @@ import { siteConfig } from './config';
 import { useNavigate } from 'react-router-dom';
 
 const Home = ({ setActiveDoc }) => {
-  // --- Naya State: Selection Mode (steno / typing / null) ---
-  const [hubMode, setHubMode] = useState(null); 
+  const [hubMode, setHubMode] = useState('steno'); // Default to Steno
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
@@ -16,6 +15,16 @@ const Home = ({ setActiveDoc }) => {
   const [isBlocked, setIsBlocked] = useState(false);
   
   const navigate = useNavigate();
+
+  // 📋 Typing Arena Specific Categories
+  const typingCategories = [
+    { id: 'gen', name: 'General Typing', icon: '📄' },
+    { id: 'legal', name: 'Legal Matter', icon: '⚖️' },
+    { id: 'tech', name: 'Technology', icon: '💻' },
+    { id: 'essay', name: 'Essay Typing', icon: '✍️' },
+    { id: 'poly', name: 'Political Matter', icon: '🏛️' },
+    { id: 'misc_type', name: 'Miscellaneous', icon: '📂' }
+  ];
 
   useEffect(() => {
     const unsubNotice = onSnapshot(doc(db, "settings", "announcement"), (doc) => {
@@ -36,7 +45,7 @@ const Home = ({ setActiveDoc }) => {
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
-      const q = query(collection(db, "results"), where("userId", "==", user.uid), limit(10));
+      const q = query(collection(db, "results"), where("userId", "==", user.uid), limit(1));
       const unsub = onSnapshot(q, (snap) => {
         if (!snap.empty) {
           const sorted = snap.docs.map(d => d.data()).sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
@@ -48,12 +57,11 @@ const Home = ({ setActiveDoc }) => {
   }, []);
 
   useEffect(() => {
-    if (selectedCat && hubMode) {
-      // 🚨 Logic Fix: HubMode ke hisab se query change hogi
+    if (selectedCat) {
       let queryConstraints = [
         where("cat", "==", selectedCat.id),
         where("status", "==", "published"),
-        where("type", "==", hubMode) // 'steno' or 'typing'
+        where("type", "==", hubMode)
       ];
       
       if (selectedCat.hasSubfolders) {
@@ -68,8 +76,6 @@ const Home = ({ setActiveDoc }) => {
           setDictations(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
         });
         return () => unsubscribe();
-      } else {
-        setDictations([]);
       }
     }
   }, [selectedCat, selectedYear, selectedMonth, hubMode]);
@@ -77,121 +83,122 @@ const Home = ({ setActiveDoc }) => {
   const handleBack = () => {
     if (selectedMonth) setSelectedMonth(null);
     else if (selectedYear) setSelectedYear(null);
-    else if (selectedCat) setSelectedCat(null);
-    else setHubMode(null); // Back to Hub Selection
+    else setSelectedCat(null);
   };
 
   if (isBlocked) return (
-    <div className="min-h-screen flex items-center justify-center p-6 text-center">
-      <div className="bg-white dark:bg-slate-800 p-10 rounded-[3rem] shadow-2xl border-2 border-red-500">
+    <div className="min-h-screen flex items-center justify-center p-6 text-center bg-slate-900">
+      <div className="bg-slate-800 p-10 rounded-[3rem] shadow-2xl border-2 border-red-500">
         <h1 className="text-4xl font-black text-red-600 uppercase mb-4">Access Restricted</h1>
-        <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Your account is suspended. Contact Support.</p>
+        <p className="text-slate-400 font-bold uppercase text-xs">Contact Administrator for support.</p>
       </div>
     </div>
   );
 
   return (
-    <div className="relative min-h-screen pb-20 overflow-hidden">
-      <div className="fixed inset-0 z-0 opacity-20 dark:opacity-25 pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=2070&auto=format&fit=crop')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
-
-      <div className="relative z-10 p-4">
+    <div className="relative min-h-screen pb-20">
+      <div className="relative z-10 p-4 max-w-5xl mx-auto">
         
+        {/* 📢 ANNOUNCEMENT */}
         {announcement && (
-          <div className="mb-6 bg-blue-600 text-white p-3 rounded-2xl shadow-lg overflow-hidden relative">
-            <div className="whitespace-nowrap animate-marquee font-black uppercase text-[10px] tracking-widest">📢 NOTICE: {announcement}</div>
+          <div className="mb-6 bg-red-600 text-white p-3 rounded-2xl shadow-lg overflow-hidden relative">
+            <div className="whitespace-nowrap animate-marquee font-black uppercase text-[10px] tracking-widest">⚠️ NOTICE: {announcement}</div>
           </div>
         )}
 
-        {/* --- STEP 0: HUB SELECTION (Side-by-Side Cards) --- */}
-        {!hubMode ? (
-          <div className="animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="mb-10 text-center">
-              <h1 className="text-5xl font-black italic tracking-tighter text-slate-900 dark:text-white uppercase">STENO<span className="text-blue-600">PULSE</span></h1>
-              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Select Training Mode</p>
+        {/* 👋 WELCOME CARD */}
+        <div className="mb-8 bg-white dark:bg-slate-800 p-6 rounded-[2.5rem] shadow-xl flex justify-between items-center border-t border-white/20">
+            <div>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase italic">Hello, {auth.currentUser?.displayName?.split(' ')[0] || 'Warrior'}!</h2>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ready for today's practice session?</p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {/* STENO CARD */}
-              <div onClick={() => setHubMode('steno')} className="group cursor-pointer">
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-10 rounded-[3rem] shadow-xl border-t border-white/50 dark:border-slate-700 text-center transition-all hover:scale-105 hover:bg-blue-600 group-hover:text-white">
-                  <span className="text-7xl block mb-6">🎙️</span>
-                  <h2 className="font-black uppercase text-2xl tracking-tighter">Steno Hub</h2>
-                  <p className="text-[9px] font-bold uppercase opacity-60 mt-2 tracking-widest">Shorthand & Transcription</p>
+            {userStats && (
+                <div className="text-right">
+                    <p className="text-[8px] font-black text-blue-600 uppercase">Last Score</p>
+                    <p className="text-xl font-black dark:text-white">{userStats.wpm || userStats.errorPercent + '%'} <span className="text-[10px] opacity-50">{userStats.wpm ? 'WPM' : 'Err'}</span></p>
                 </div>
-              </div>
+            )}
+        </div>
 
-              {/* TYPING CARD */}
-              <div onClick={() => setHubMode('typing')} className="group cursor-pointer">
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-10 rounded-[3rem] shadow-xl border-t border-white/50 dark:border-slate-700 text-center transition-all hover:scale-105 hover:bg-green-600 group-hover:text-white">
-                  <span className="text-7xl block mb-6">⌨️</span>
-                  <h2 className="font-black uppercase text-2xl tracking-tighter">Typing Arena</h2>
-                  <p className="text-[9px] font-bold uppercase opacity-60 mt-2 tracking-widest">Speed & Accuracy Focus</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : !selectedCat ? (
-          /* --- STEP 1: CATEGORY SELECTION --- */
-          <div className="animate-in slide-in-from-bottom-4">
-            <button onClick={handleBack} className="mb-6 font-black text-blue-600 text-[10px] uppercase">← Back to Hub</button>
-            <h2 className="text-3xl font-black uppercase italic mb-8">{hubMode === 'steno' ? '🎙️ Shorthand Folders' : '⌨️ Typing Exercises'}</h2>
-            <div className="grid grid-cols-2 gap-6">
-              {siteConfig.categories.map((cat) => (
-                <div key={cat.id} onClick={() => setSelectedCat(cat)} className="bg-white/80 dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl text-center cursor-pointer active:scale-95 transition-all">
-                  <span className="text-5xl block mb-4">{cat.icon}</span>
-                  <h2 className="font-black uppercase text-[11px] tracking-widest">{cat.name}</h2>
+        {/* 🚀 SELECTION WAY (TAB SYSTEM) */}
+        <div className="flex bg-slate-200 dark:bg-slate-800/50 p-1.5 rounded-full mb-10 shadow-inner max-w-md mx-auto border border-slate-300 dark:border-slate-700">
+          <button 
+            onClick={() => { setHubMode('steno'); setSelectedCat(null); }}
+            className={`flex-1 py-3.5 rounded-full font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${hubMode === 'steno' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
+          >
+            ✏️ STENO HUB
+          </button>
+          <button 
+            onClick={() => { setHubMode('typing'); setSelectedCat(null); }}
+            className={`flex-1 py-3.5 rounded-full font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${hubMode === 'typing' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
+          >
+            ⌨️ TYPING ARENA
+          </button>
+        </div>
+
+        {!selectedCat ? (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* CATEGORY GRID */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-16">
+              {(hubMode === 'steno' ? siteConfig.categories : typingCategories).map((cat) => (
+                <div key={cat.id} onClick={() => setSelectedCat(cat)} className="group cursor-pointer active:scale-95 transition-all">
+                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-8 rounded-[3rem] shadow-xl text-center border-b-4 border-transparent group-hover:border-blue-500 transition-all">
+                    <span className="text-5xl block mb-4 group-hover:scale-110 transition-transform">{cat.icon}</span>
+                    <h2 className="font-black uppercase text-[11px] tracking-widest text-slate-800 dark:text-slate-100">{cat.name}</h2>
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* ✨ SITE FEATURES SECTION */}
+            <div className="border-t dark:border-slate-800 pt-10">
+                <h4 className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-10">StenoPulse Core Features</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="text-center p-6">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl">🎯</div>
+                        <h5 className="font-black uppercase text-xs dark:text-white mb-2">Exam Accuracy</h5>
+                        <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Real-time character based WPM and error calculation as per government norms.</p>
+                    </div>
+                    <div className="text-center p-6">
+                        <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl">🛡️</div>
+                        <h5 className="font-black uppercase text-xs dark:text-white mb-2">Anti-Cheat Mode</h5>
+                        <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Focus-lock system that prevents accidental exits and ensures honest practice.</p>
+                    </div>
+                    <div className="text-center p-6">
+                        <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl">📊</div>
+                        <h5 className="font-black uppercase text-xs dark:text-white mb-2">Detailed Analysis</h5>
+                        <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Identify skipped words and specific mistakes with our advanced highlighting tool.</p>
+                    </div>
+                </div>
+            </div>
           </div>
         ) : (
-          /* --- STEP 2: FOLDER & EXERCISE LIST --- */
+          /* EXERCISE LISTING VIEW */
           <div className="animate-in slide-in-from-right duration-500">
-            <button onClick={handleBack} className="mb-8 font-black text-blue-600 text-[10px] uppercase">← Return</button>
-            <h2 className="text-4xl font-black uppercase italic mb-10 text-slate-900 dark:text-white">{selectedMonth || selectedYear || selectedCat.name}</h2>
+            <button onClick={handleBack} className="mb-8 font-black text-blue-600 text-[10px] uppercase tracking-widest flex items-center gap-2">
+              <span className="text-lg">←</span> Back to {hubMode === 'steno' ? 'Steno' : 'Typing'} Hub
+            </button>
+            
+            <h2 className="text-4xl font-black uppercase italic mb-10 text-slate-900 dark:text-white">
+              {selectedMonth || selectedYear || selectedCat.name}
+            </h2>
 
-            {selectedCat.hasSubfolders && !selectedYear && (
-              <div className="grid grid-cols-2 gap-6">
-                {selectedCat.years.map(year => (
-                  <div key={year} onClick={() => setSelectedYear(year)} className="bg-white/90 dark:bg-slate-800/90 p-8 rounded-[2rem] shadow-xl text-center font-black text-blue-600 cursor-pointer transition-all hover:bg-blue-600 hover:text-white">📅 {year}</div>
-                ))}
-              </div>
-            )}
-
-            {selectedYear && !selectedMonth && (
-              <div className="grid grid-cols-2 gap-4">
-                {selectedCat.months.map(month => (
-                  <div key={month} onClick={() => setSelectedMonth(month)} className="bg-white/90 dark:bg-slate-800/90 p-6 rounded-[1.5rem] shadow-lg text-center font-black text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-blue-50 transition-all">{month}</div>
-                ))}
-              </div>
-            )}
-
-            {(!selectedCat.hasSubfolders || (selectedYear && selectedMonth)) && (
-              <div className="space-y-6">
+            {/* List Logic (Stays same) */}
+            <div className="space-y-4">
                 {dictations.length > 0 ? dictations.map((d) => (
-                  <div 
-                    key={d.id} 
-                    onClick={() => { 
-                      setActiveDoc(d); 
-                      // 🚨 Navigation Choice
-                      navigate(hubMode === 'steno' ? '/typing' : '/typing-arena'); 
-                    }} 
-                    className="bg-white/90 dark:bg-slate-800/90 p-7 rounded-[2.5rem] shadow-xl flex justify-between items-center cursor-pointer group hover:bg-blue-600"
-                  >
+                  <div key={d.id} onClick={() => { setActiveDoc(d); navigate(hubMode === 'steno' ? '/typing' : '/typing-arena'); }} className="bg-white/90 dark:bg-slate-800/90 p-6 rounded-[2.5rem] shadow-lg flex justify-between items-center cursor-pointer group hover:bg-blue-600 transition-all">
                     <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black group-hover:bg-white group-hover:text-blue-600">{d.title.charAt(0)}</div>
-                      <div>
-                        <h3 className="font-black text-slate-800 dark:text-slate-100 uppercase group-hover:text-white">{d.title}</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-white/70">{d.allowedTime} Mins | {hubMode === 'steno' ? 'Steno' : 'Typing'}</p>
-                      </div>
+                      <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl flex items-center justify-center font-black group-hover:bg-white group-hover:text-blue-600">{d.title.charAt(0)}</div>
+                      <h3 className="font-black text-slate-800 dark:text-slate-100 uppercase group-hover:text-white italic">{d.title}</h3>
                     </div>
-                    <div className="bg-blue-600 text-white p-3 rounded-2xl group-hover:bg-white group-hover:text-blue-600 transition-transform">🚀</div>
+                    <div className="bg-blue-600 text-white p-2.5 rounded-xl group-hover:bg-white group-hover:text-blue-600">🚀</div>
                   </div>
                 )) : (
-                  <div className="text-center py-20 text-slate-400 font-black uppercase text-[10px]">No Active Tests in this Mode</div>
+                  <div className="text-center py-20 bg-white/50 dark:bg-slate-800/50 rounded-[3rem] text-slate-400 font-black uppercase text-[10px] tracking-widest">
+                    No active matter found in this category
+                  </div>
                 )}
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>
