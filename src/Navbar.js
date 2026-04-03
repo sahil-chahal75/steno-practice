@@ -2,9 +2,13 @@ import React from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { siteConfig } from './config';
+// 1. Router ka navigation tool import karo
+import { useNavigate } from 'react-router-dom';
 
-const Navbar = ({ user, setView, toggleTheme, darkMode, setShowAdmin, setIsSidebarOpen }) => {
+const Navbar = ({ user, toggleTheme, darkMode, setShowAdmin, setIsSidebarOpen }) => {
   const isAdmin = user && user.email === siteConfig.adminEmail;
+  // 2. Navigate function initialize karo
+  const navigate = useNavigate();
 
   return (
     <nav className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-md p-4 sticky top-0 z-50 transition-colors border-b dark:border-slate-700">
@@ -23,7 +27,8 @@ const Navbar = ({ user, setView, toggleTheme, darkMode, setShowAdmin, setIsSideb
           </button>
 
           <h1 
-            onClick={() => { setView('home'); setIsSidebarOpen(false); }} 
+            // 3. setView ki jagah navigate('/') use kiya taaki home par chala jaye
+            onClick={() => { navigate('/'); setIsSidebarOpen(false); }} 
             className="text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 italic cursor-pointer uppercase tracking-tighter select-none"
           >
             {siteConfig.name}
@@ -41,7 +46,7 @@ const Navbar = ({ user, setView, toggleTheme, darkMode, setShowAdmin, setIsSideb
             {darkMode ? '☀️' : '🌙'}
           </button>
 
-          {/* Admin Panel (Desktop Only, Mobile par Sidebar mein dikhega) */}
+          {/* Admin Panel */}
           {isAdmin && (
             <button 
               onClick={() => setShowAdmin(true)}
@@ -51,7 +56,7 @@ const Navbar = ({ user, setView, toggleTheme, darkMode, setShowAdmin, setIsSideb
             </button>
           )}
 
-          {/* Quick Logout Icon (Optional, keeping it clean) */}
+          {/* Logout Icon */}
           <button 
             onClick={() => signOut(auth)}
             className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
