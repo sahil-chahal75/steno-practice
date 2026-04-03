@@ -31,7 +31,7 @@ const TypingAdmin = () => {
       const unsubMatters = onSnapshot(query(collection(db, "typing_matters"), orderBy("createdAt", "desc")), (snap) => {
         setTypingMatters(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });
-      const unsubResults = onSnapshot(query(collection(db, "typing_results"), orderBy("submittedAt", "desc")), (snap) => {
+      const unsubResults = onSnapshot(query(collection(db, "typing_results"), orderBy("createdAt", "desc")), (snap) => {
         setTypingResults(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });
       return () => { unsubMatters(); unsubResults(); };
@@ -113,14 +113,14 @@ const TypingAdmin = () => {
               <input 
                 type="text" 
                 placeholder="Matter Name (e.g. HSSC Set-1)" 
-                className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-bold"
+                className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-gray-900" 
                 value={form.title}
                 onChange={e => setForm({...form, title: e.target.value})}
                 required
               />
               <textarea 
                 placeholder="Enter Typing Material content here..." 
-                className="w-full h-80 p-5 bg-gray-50 border-2 border-gray-100 rounded-3xl outline-none focus:border-blue-500 font-medium leading-relaxed"
+                className="w-full h-80 p-5 bg-gray-50 border-2 border-gray-100 rounded-3xl outline-none focus:border-blue-500 font-medium leading-relaxed text-gray-900"
                 value={form.text}
                 onChange={e => setForm({...form, text: e.target.value})}
                 required
@@ -187,7 +187,7 @@ const TypingAdmin = () => {
                         <div className="text-[9px] text-gray-400 font-bold uppercase">{r.userEmail}</div>
                       </td>
                       <td className="p-4 text-xs font-bold text-gray-500 uppercase">{r.matterTitle}</td>
-                      <td className="p-4 font-black text-blue-600">{r.wpm} WPM</td>
+                      <td className="p-4 font-black text-blue-600">{r.netWpm} WPM</td>
                       <td className="p-4 font-black text-green-600">{r.accuracy}%</td>
                     </tr>
                   ))}
@@ -204,4 +204,3 @@ const TypingAdmin = () => {
 };
 
 export default TypingAdmin;
-    
