@@ -4,13 +4,14 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const TypingArena = ({ matter, setView, setResults, userEmail, userName }) => {
   const [typedText, setTypedText] = useState('');
-  const [selectedTime, setSelectedTime] = useState(5); // Default 5 Mins
-  const [timeLeft, setTimeLeft] = useState(300); // 5 * 60
+  const [selectedTime, setSelectedTime] = useState(5);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isStarted, setIsStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   
   const timerRef = useRef(null);
   const textareaRef = useRef(null);
+  const matterBoxRef = useRef(null);
 
   // ⏱️ Countdown Logic
   useEffect(() => {
@@ -24,7 +25,27 @@ const TypingArena = ({ matter, setView, setResults, userEmail, userName }) => {
     return () => clearInterval(timerRef.current);
   }, [isStarted, timeLeft]);
 
-  // Handle Time Selection (Before starting)
+  // 🔄 Smart Auto-Scroll Logic for Original Matter
+  useEffect(() => {
+    if (isStarted && matterBoxRef.current) {
+      const typedWordsCount = typedText.trim().split(/\s+/).length;
+      const totalWords = matter.text.split(/\s+/).length;
+      
+      // Calculate percentage of progress
+      const progress = typedWordsCount / totalWords;
+      const scrollHeight = matterBoxRef.current.scrollHeight;
+      const clientHeight = matterBoxRef.current.clientHeight;
+
+      // Agar bacha 30% se zyada type kar chuka hai toh smooth scroll shuru karega
+      if (progress > 0.2) {
+        matterBoxRef.current.scrollTo({
+          top: (scrollHeight - clientHeight) * progress,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [typedText, isStarted, matter.text]);
+
   const handleTimeChange = (mins) => {
     if (!isStarted) {
       setSelectedTime(mins);
@@ -32,7 +53,6 @@ const TypingArena = ({ matter, setView, setResults, userEmail, userName }) => {
     }
   };
 
-  // ⌨️ Start Timer on First Key Stroke
   const handleTyping = (e) => {
     if (!isStarted && !isFinished && e.target.value.length > 0) {
       setIsStarted(true);
@@ -49,7 +69,6 @@ const TypingArena = ({ matter, setView, setResults, userEmail, userName }) => {
     const originalWords = originalText.split(/\s+/);
     const typedWords = typedText.trim().split(/\s+/);
     
-    // 🚩 Professional Error Calculation
     let errors = 0;
     typedWords.forEach((word, index) => {
       if (word !== originalWords[index]) {
@@ -101,94 +120,80 @@ const TypingArena = ({ matter, setView, setResults, userEmail, userName }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans select-none">
+    <div className="min-h-screen bg-slate-50 font-sans select-none overflow-hidden h-screen flex flex-col">
       
-      {/* 🏛️ TOP FORMAL HEADER */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-[1600px] mx-auto flex flex-wrap justify-between items-center gap-4">
-          
+      {/* 🏛️ FIXED TOP HEADER */}
+      <div className="bg-white border-b border-slate-200 px-6 py-3 shadow-sm z-50">
+        <div className="max-w-full mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button onClick={() => setView('list')} className="text-slate-400 hover:text-blue-600 font-bold text-xs uppercase tracking-widest transition-colors">← Exit</button>
-            <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
-            <div>
-              <h1 className="text-sm font-black text-slate-800 uppercase italic leading-none">{matter.title}</h1>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Official Examination Mode</p>
-            </div>
+            <button onClick={() => setView('list')} className="text-slate-400 hover:text-blue-600 font-bold text-[10px] uppercase tracking-widest">← Exit</button>
+            <div className="h-6 w-[1px] bg-slate-200"></div>
+            <h1 className="text-sm font-black text-slate-800 uppercase italic truncate max-w-[300px]">{matter.title}</h1>
           </div>
 
-          {/* TIMER OPTIONS (Visible only before start) */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
             {!isStarted && !isFinished && (
-              <div className="flex bg-slate-100 p-1 rounded-xl mr-6">
+              <div className="flex bg-slate-100 p-1 rounded-lg">
                 {[5, 10, 15].map(m => (
-                  <button 
-                    key={m} 
-                    onClick={() => handleTimeChange(m)}
-                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${selectedTime === m ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {m} Min
-                  </button>
+                  <button key={m} onClick={() => handleTimeChange(m)}
+                    className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${selectedTime === m ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
+                  > {m} Min </button>
                 ))}
               </div>
             )}
-            
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] font-black text-red-500 uppercase tracking-tighter">Time Remaining</span>
-              <div className={`text-3xl font-mono font-black leading-none ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-slate-800'}`}>
-                {formatTime(timeLeft)}
-              </div>
+            <div className="text-right">
+              <span className="text-[8px] font-black text-red-500 uppercase block tracking-tighter">Time Left</span>
+              <div className="text-2xl font-mono font-black text-slate-800 leading-none">{formatTime(timeLeft)}</div>
             </div>
           </div>
-
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto p-4 md:p-6 grid grid-cols-1 gap-6">
+      {/* 🧩 MAIN EXAM AREA (FULL SCREEN NO SCROLL ON BODY) */}
+      <div className="flex-1 p-4 md:p-6 flex flex-col gap-4 overflow-hidden">
         
-        {/* 📄 ORIGINAL MATTER BOX (FULL WIDTH) */}
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-6 py-2 border-b border-slate-200 flex justify-between">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Source Text Block</span>
-            <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic">Passage Mode Active</span>
+        {/* 📄 ORIGINAL MATTER BOX (Dynamic height) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-1 max-h-[45%]">
+          <div className="bg-slate-50 px-4 py-1.5 border-b border-slate-200 flex justify-between">
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic">Source Text (Auto-Scrolling Enabled)</span>
           </div>
-          <div className="p-8 text-xl md:text-2xl leading-[1.8] text-slate-400 font-medium whitespace-pre-wrap text-justify select-none pointer-events-none max-h-[40vh] overflow-y-auto">
+          <div 
+            ref={matterBoxRef}
+            className="p-6 md:p-8 text-lg md:text-xl leading-[1.8] text-slate-400 font-medium whitespace-pre-wrap text-justify overflow-y-auto scroll-smooth"
+            style={{ fontSize: matter.text.length > 1000 ? '1.1rem' : '1.4rem' }}
+          >
             {matter.text}
           </div>
         </div>
 
         {/* ⌨️ INPUT AREA */}
-        <div className="relative">
+        <div className="flex-1 flex flex-col min-h-[45%]">
           <textarea
             ref={textareaRef}
-            className="w-full h-[45vh] p-8 rounded-3xl border-2 border-slate-200 text-xl md:text-2xl leading-relaxed outline-none focus:border-blue-500 bg-white shadow-xl font-mono text-slate-800 transition-all resize-none"
-            placeholder={isStarted ? "" : "CLICK HERE AND START TYPING TO BEGIN THE TIMER..."}
+            className="flex-1 w-full p-8 rounded-2xl border-2 border-slate-200 text-xl md:text-2xl leading-relaxed outline-none focus:border-blue-500 bg-white shadow-lg font-mono text-slate-800 resize-none transition-all"
+            placeholder={isStarted ? "" : "START TYPING HERE TO BEGIN THE TEST..."}
             value={typedText}
             spellCheck="false"
             autoComplete="off"
             onChange={handleTyping}
-            onPaste={(e) => e.preventDefault()} // No cheating!
+            onPaste={(e) => e.preventDefault()}
           />
-          
-          {/* Bottom Action */}
-          <div className="absolute bottom-6 right-6">
-            <button 
-              onClick={() => { if(window.confirm("CONFIRM SUBMISSION: Are you sure you want to end the test now?")) finishTest(); }} 
-              className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-blue-700 hover:-translate-y-1 transition-all active:scale-95"
-            >
-              Submit Examination 🚀
-            </button>
-          </div>
         </div>
 
-        {/* USER INFO FOOTER */}
-        <div className="flex justify-between items-center px-4">
-          <div className="flex gap-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Candidate: <span className="text-slate-800">{userName}</span></p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Words Typed: <span className="text-blue-600">{typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length}</span></p>
+        {/* 🛠️ FOOTER ACTIONS */}
+        <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex gap-6 items-center">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">User: <span className="text-slate-800">{userName}</span></p>
+            <div className="h-4 w-[1px] bg-slate-200"></div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Words: <span className="text-blue-600">{typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length}</span></p>
           </div>
-          <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest italic">© STENOPULSE EXAMINATION SYSTEM V2.0</p>
+          <button 
+            onClick={() => { if(window.confirm("SUBMIT TEST?")) finishTest(); }} 
+            className="bg-blue-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-700 transition-all active:scale-95"
+          >
+            Submit Now 🚀
+          </button>
         </div>
-
       </div>
     </div>
   );
