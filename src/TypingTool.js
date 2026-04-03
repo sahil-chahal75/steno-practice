@@ -9,7 +9,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
   const timerRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // ⏱️ Timer Logic
+  // ⏱️ Timer Logic (Pehle wala hi hai)
   useEffect(() => {
     if (isTimerActive && timeLeft > 0) {
       timerRef.current = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
@@ -19,7 +19,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
     return () => clearInterval(timerRef.current);
   }, [isTimerActive, timeLeft]);
 
-  // 📜 Auto-Scroll Logic: Ensures the cursor is always visible
+  // 📜 Auto-Scroll Logic (Pehle wala hi hai)
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
@@ -44,44 +44,38 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
   return (
     <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-900 pb-10 font-sans transition-colors">
       
-      {/* ⚪ MAIN EXAM CONTAINER (White Background like Image) */}
       <div className="max-w-4xl mx-auto pt-6 px-4">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
           
-          {/* Header Section */}
           <h1 className="text-2xl font-semibold text-center text-slate-800 dark:text-white mb-6">
             Steno Dictation Practice
           </h1>
 
           <div className="flex flex-col gap-4">
             
-            {/* Time Left Info */}
             <div className="text-slate-600 dark:text-slate-300 font-medium">
               Time Left: <span className="font-mono">{formatTime(timeLeft)}</span>
             </div>
 
-            {/* Exercise Title Box */}
             <div className="bg-[#e9ecef] dark:bg-slate-700 p-3 rounded text-slate-700 dark:text-slate-200 font-medium border border-slate-300 dark:border-slate-600">
               {doc.title}
             </div>
 
-            {/* 🎧 AUDIO PLAYER */}
+            {/* 🎧 AUDIO PLAYER (Only Buffering Fix Added) */}
             <div className="w-full">
               <audio 
-  ref={audioRef} 
-  src={doc.audioUrl} 
-  controls 
-  preload="auto" 
-  crossOrigin="anonymous"
-  className="w-full h-12"
-/>
-
+                ref={audioRef} 
+                src={doc.audioUrl} 
+                controls 
+                preload="auto" 
+                className="w-full h-12"
+                onPlay={() => {}} 
+              />
               <p className="text-[11px] text-slate-500 mt-2 italic">
-                Note: Audio may take up to 10 seconds to load, please be patient.
+                Note: Audio pre-loading enabled for better performance. Please wait up to 10 second for better audio .
               </p>
             </div>
 
-            {/* ⌨️ TYPING BOX (Auto-Scroll & No Spellcheck) */}
             <textarea 
               ref={textareaRef}
               className="w-full h-[350px] p-4 border-2 border-slate-300 dark:border-slate-600 rounded outline-none focus:border-blue-500 text-lg md:text-xl leading-relaxed dark:bg-slate-900 dark:text-white resize-none shadow-inner overflow-y-auto"
@@ -91,14 +85,12 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
               autoFocus
               onChange={(e) => {
                 setTypedText(e.target.value);
-                // 🚀 FIRST LETTER PAR TIMER START
                 if (!isTimerActive && e.target.value.length > 0) {
                   setIsTimerActive(true);
                 }
               }}
             />
 
-            {/* Action Buttons (As per your Image) */}
             <div className="flex flex-col gap-2 mt-2">
               <button 
                 onClick={() => setIsTimerActive(true)}
@@ -115,7 +107,6 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
               </button>
             </div>
 
-            {/* Bottom Progress Bar (Dummy like image) */}
             <div className="w-full bg-[#e9ecef] h-4 rounded-full overflow-hidden mt-2">
               <div 
                 className="bg-[#d1e7dd] h-full transition-all duration-500" 
