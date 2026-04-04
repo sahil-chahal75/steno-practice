@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const TypingTool = ({ doc, setView, setTestResult }) => {
+const TypingTool = ({ doc, setTestResult }) => {
   const [typedText, setTypedText] = useState('');
   const [timeLeft, setTimeLeft] = useState(doc.allowedTime * 60);
   const [isTimerActive, setIsTimerActive] = useState(false);
   
+  const navigate = useNavigate();
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // ⏱️ Timer Logic (Pehle wala hi hai)
+  // ⏱️ Timer Logic
   useEffect(() => {
     if (isTimerActive && timeLeft > 0) {
       timerRef.current = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
@@ -19,7 +21,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
     return () => clearInterval(timerRef.current);
   }, [isTimerActive, timeLeft]);
 
-  // 📜 Auto-Scroll Logic (Pehle wala hi hai)
+  // 📜 Auto-Scroll Logic
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
@@ -36,8 +38,12 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
     if (window.confirm("Are you sure you want to submit your transcription?")) {
       clearInterval(timerRef.current);
       if (audioRef.current) audioRef.current.pause();
+      
+      // 1. Result set karo
       setTestResult(typedText);
-      setView('result');
+      
+      // 2. Browser ko /result page par bhej do
+      navigate('/result');
     }
   };
 
@@ -61,7 +67,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
               {doc.title}
             </div>
 
-            {/* 🎧 AUDIO PLAYER (Only Buffering Fix Added) */}
+            {/* 🎧 AUDIO PLAYER */}
             <div className="w-full">
               <audio 
                 ref={audioRef} 
@@ -69,7 +75,6 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
                 controls 
                 preload="auto" 
                 className="w-full h-12"
-                onPlay={() => {}} 
               />
               <p className="text-[11px] text-slate-500 mt-2 italic">
                 Note: Audio pre-loading enabled for better performance. Please wait up to 10 second for better audio .
@@ -93,7 +98,10 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
 
             <div className="flex flex-col gap-2 mt-2">
               <button 
-                onClick={() => setIsTimerActive(true)}
+                onClick={() => {
+                  setIsTimerActive(true);
+                  if (audioRef.current) audioRef.current.play();
+                }}
                 className="w-full bg-[#3b71ca] hover:bg-[#3462b0] text-white py-3 rounded font-medium transition-colors uppercase text-sm tracking-wide"
               >
                 Start
@@ -110,7 +118,7 @@ const TypingTool = ({ doc, setView, setTestResult }) => {
             <div className="w-full bg-[#e9ecef] h-4 rounded-full overflow-hidden mt-2">
               <div 
                 className="bg-[#d1e7dd] h-full transition-all duration-500" 
-                style={{ width: `${(typedText.length / 500) * 100}%` }}
+                style={{ width: `${Math.min((typedText.length / 500) * 100, 100)}%` }}
               ></div>
             </div>
 
