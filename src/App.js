@@ -99,9 +99,10 @@ const App = () => {
                 element={user && activeDoc ? <TypingTool doc={activeDoc} setTestResult={setTestResult} /> : <Navigate to="/" />} 
               />
 
+              {/* ✅ UPDATED: Added setTestResult prop for smooth navigation */}
               <Route 
                 path="/result" 
-                element={user && testResult ? <Result result={testResult} doc={activeDoc} /> : <Navigate to="/" />} 
+                element={user && testResult ? <Result result={testResult} doc={activeDoc} setTestResult={setTestResult} /> : <Navigate to="/" />} 
               />
 
               {/* NEW TYPING SYSTEM ROUTES */}
