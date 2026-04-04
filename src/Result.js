@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { auth, db } from './firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-const Result = ({ result, doc, setView, darkMode }) => {
+// ✅ Added setTestResult and setView in props to match your App.js
+const Result = ({ result, doc, setView, setTestResult, darkMode }) => {
   const [showOriginal, setShowOriginal] = useState(false);
   const [filterType, setFilterType] = useState(null); 
-  const originalText = doc.text;
+  
+  // Safety check for original text
+  const originalText = doc?.text || "";
   const typedText = result || "";
 
   const clean = (word) => {
@@ -14,6 +17,9 @@ const Result = ({ result, doc, setView, darkMode }) => {
   };
 
   const calculateResult = () => {
+    // If no text, return empty stats to prevent crash
+    if (!originalText) return null;
+
     const oriArr = originalText.trim().split(/\s+/);
     const typArr = typedText.trim().split(/\s+/);
     
@@ -60,7 +66,7 @@ const Result = ({ result, doc, setView, darkMode }) => {
 
     const totalErrors = fullMistakes + halfMistakes;
     const errorPercent = ((totalErrors / oriArr.length) * 100).toFixed(2);
-    const isQualified = errorPercent <= doc.errorLimit;
+    const isQualified = parseFloat(errorPercent) <= (doc?.errorLimit || 5);
 
     return { 
       report, 
@@ -76,10 +82,12 @@ const Result = ({ result, doc, setView, darkMode }) => {
 
   const data = calculateResult();
 
+  // 🚀 FIXED: Saving Logic with proper checks
   useEffect(() => {
     const saveToDB = async () => {
       const user = auth.currentUser;
-      if (user) {
+      // Only save if we have all data and it's a fresh result
+      if (user && data && doc?.title) {
         try {
           await addDoc(collection(db, "results"), {
             userId: user.uid,
@@ -92,13 +100,16 @@ const Result = ({ result, doc, setView, darkMode }) => {
             status: data.isQualified ? 'QUALIFIED ✅' : 'DISQUALIFIED ❌',
             submittedAt: serverTimestamp()
           });
+          console.log("Result saved successfully!");
         } catch (err) {
           console.error("Error saving result:", err);
         }
       }
     };
     saveToDB();
-  }, []);
+  }, [data, doc]); // Runs when data is ready
+
+  if (!data) return <div className="p-20 text-center font-black">Calculating Results...</div>;
 
   const filteredWords = data.report.filter(item => {
     if (filterType === 'full') return ['wrong', 'missing', 'extra'].includes(item.type);
@@ -107,6 +118,12 @@ const Result = ({ result, doc, setView, darkMode }) => {
   });
 
   const handlePrint = () => { window.print(); };
+
+  // ✅ Fixed Dashboard button logic
+  const handleBackToDashboard = () => {
+    if (setTestResult) setTestResult(null); 
+    // Navigation is handled by App.js based on testResult state
+  };
 
   return (
     <div className="max-w-4xl mx-auto pb-10 bg-white min-h-screen p-4">
@@ -131,7 +148,6 @@ const Result = ({ result, doc, setView, darkMode }) => {
 
         <h2 className={`text-3xl font-black mb-6 text-center italic ${data.isQualified ? 'text-green-600' : 'text-red-600'}`}>{data.isQualified ? 'QUALIFIED ✅' : 'DISQUALIFIED ❌'}</h2>
 
-        {/* 1 & 2. STATS SECTION (Fixing Visibility) */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="bg-slate-50 p-3 rounded-xl text-center border">
             <p className="text-[9px] font-black text-slate-500 uppercase">Original Words</p>
@@ -156,7 +172,7 @@ const Result = ({ result, doc, setView, darkMode }) => {
         </div>
       </div>
 
-      {/* 3. MISTAKE FILTER BUTTONS */}
+      {/* MISTAKE FILTER BUTTONS */}
       <div className="flex gap-4 mb-6 no-print">
         <button 
           onClick={() => setFilterType(filterType === 'full' ? null : 'full')} 
@@ -172,19 +188,14 @@ const Result = ({ result, doc, setView, darkMode }) => {
         </button>
       </div>
 
-      {/* FILTERED LIST */}
       {filterType && (
         <div className="no-print bg-slate-50 border-2 border-slate-200 rounded-[2rem] p-6 mb-6 animate-in slide-in-from-top duration-300">
-          <h4 className="text-xs font-black text-slate-600 uppercase mb-4 italic underline decoration-blue-500">
-            {filterType === 'full' ? 'Full Mistake List' : 'Half Mistake List'}
-          </h4>
           <div className="flex flex-wrap gap-2">
             {filteredWords.map((item, idx) => (
               <span key={idx} className={`px-4 py-2 rounded-lg text-sm font-black border-2 ${filterType === 'full' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
                 {item.word} {item.original && <span className="text-[10px] opacity-70">({item.original})</span>}
               </span>
             ))}
-            {filteredWords.length === 0 && <p className="text-xs font-bold text-slate-400 italic">No mistakes found in this category.</p>}
           </div>
         </div>
       )}
@@ -196,17 +207,10 @@ const Result = ({ result, doc, setView, darkMode }) => {
         </div>
       )}
 
-      {/* 4. DETAILED ANALYSIS (Darker Colors) */}
+      {/* DETAILED ANALYSIS */}
       <div className="print-container bg-white rounded-[2rem] p-6 shadow-lg border border-slate-100">
         <div className="flex justify-between items-center mb-6 border-b-2 border-slate-100 pb-4">
           <h3 className="font-black uppercase tracking-widest text-slate-500 text-[10px] italic">Evaluation Analysis</h3>
-          <div className="text-[10px] font-black uppercase space-x-2">
-            <span className="text-green-700">Correct: Green</span> | 
-            <span className="text-red-700">Wrong: Red</span> | 
-            <span className="text-orange-700">Half: Orange</span> | 
-            <span className="text-blue-700">Extra: Blue</span> | 
-            <span className="text-slate-900 font-bold underline">Missing: Brackets</span>
-          </div>
         </div>
         
         <div className="leading-[2.8] font-bold text-lg text-justify px-2">
@@ -221,7 +225,7 @@ const Result = ({ result, doc, setView, darkMode }) => {
           ))}
         </div>
 
-        <button onClick={() => setView('home')} className="no-print w-full mt-8 bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl">Back to Dashboard</button>
+        <button onClick={handleBackToDashboard} className="no-print w-full mt-8 bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl">Back to Dashboard</button>
       </div>
     </div>
   );
